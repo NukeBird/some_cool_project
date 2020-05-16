@@ -342,6 +342,9 @@ MeshRef parse_mesh(aiMesh* assimp_mesh, const MaterialList& materials)
 
 	mesh->vao->unbind();
 
+	assert(assimp_mesh->mMaterialIndex < materials.size());
+	mesh->material = materials[assimp_mesh->mMaterialIndex];
+
 	return mesh;
 }
 
