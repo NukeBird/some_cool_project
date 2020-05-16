@@ -252,7 +252,7 @@ BufferRef parse_vbo(aiMesh* assimp_mesh)
 	return vbo;
 }
 
-BufferRef parse_ebo(aiMesh* assimp_mesh)
+BufferRef parse_ebo(aiMesh* assimp_mesh, uint32_t& index_count)
 {
 	BufferRef ebo = globjects::Buffer::create();
 
@@ -272,6 +272,8 @@ BufferRef parse_ebo(aiMesh* assimp_mesh)
 	ebo->bind(gl::GL_ELEMENT_ARRAY_BUFFER);
 	ebo->setData(data, gl::GL_STATIC_DRAW);
 
+	index_count = static_cast<uint32_t>(data.size());
+
 	return ebo;
 }
 
@@ -285,7 +287,12 @@ MeshRef parse_mesh(aiMesh* assimp_mesh, const MaterialList& materials)
 	assert(assimp_mesh->HasTangentsAndBitangents());
 
 	mesh->vbo = parse_vbo(assimp_mesh);
-	mesh->ebo = parse_ebo(assimp_mesh);
+	mesh->ebo = parse_ebo(assimp_mesh, mesh->index_count);
+
+	auto& assimp_aabb = assimp_mesh->mAABB;
+
+	mesh->box.min = to_glm(assimp_aabb.mMin);
+	mesh->box.max = to_glm(assimp_aabb.mMax);
 
 	return mesh;
 }
