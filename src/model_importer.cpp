@@ -335,9 +335,9 @@ MeshRef parse_mesh(aiMesh* assimp_mesh, const MaterialList& materials)
 	mesh->vao->enable(3);
 
 	auto uv_binding = mesh->vao->binding(4);
-	bitangent_binding->setAttribute(4);
-	bitangent_binding->setBuffer(mesh->vbo.get(), offsetof(Vertex, uv), sizeof(Vertex));
-	bitangent_binding->setFormat(2, gl::GL_FLOAT, false);
+	uv_binding->setAttribute(4);
+	uv_binding->setBuffer(mesh->vbo.get(), offsetof(Vertex, uv), sizeof(Vertex));
+	uv_binding->setFormat(2, gl::GL_FLOAT, false);
 	mesh->vao->enable(4);
 
 	mesh->vao->unbind();
