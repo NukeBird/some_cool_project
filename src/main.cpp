@@ -17,7 +17,7 @@ int main()
 		return glfwGetProcAddress(name);
 	});
 
-	auto model = ModelImporter::load("blah.glb");
+	auto model = ModelImporter::load("data/matball.glb");
 
 	spdlog::info("Model loaded: {0}", model != nullptr);
 
