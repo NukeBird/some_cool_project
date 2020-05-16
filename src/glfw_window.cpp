@@ -4,11 +4,24 @@
 
 namespace
 {
-    struct GlfwGuard
+    class GlfwKeeper
     {
+    public:
         std::mutex mutex;
 
-        GlfwGuard()
+        static GlfwKeeper& Get()
+        {
+            static GlfwKeeper keeper;
+            return keeper;
+        }
+
+        GlfwKeeper(const GlfwKeeper&) = delete;
+        GlfwKeeper(GlfwKeeper&&) = delete;
+        GlfwKeeper& operator=(const GlfwKeeper&) = delete;
+        GlfwKeeper& operator=(GlfwKeeper&&) = delete;
+
+    private:
+        GlfwKeeper()
         {
             if (!glfwInit())
                 throw GlfwException("Initialization failed");
@@ -18,7 +31,7 @@ namespace
                 });
         }
 
-        ~GlfwGuard()
+        ~GlfwKeeper()
         {
             glfwTerminate();
         }
@@ -40,10 +53,8 @@ void GlfwWindow::TryUpdateGlBindings()
 
 void GlfwWindow::Run()
 {
-    static GlfwGuard glfw;
-
     {
-        std::lock_guard lock(glfw.mutex);
+        std::lock_guard lock(GlfwKeeper::Get().mutex);
 
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, OpenGL_Context_Version_Major);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, OpenGL_Context_Version_Minor);
