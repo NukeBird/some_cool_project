@@ -54,7 +54,8 @@ TextureRef parse_texture(aiTexture* assimp_texture)
 		SOIL_free_image_data(image_ptr);
 		throw std::runtime_error(SOIL_last_result());
 	}
-
+	
+	texture->bindActive(0);
 	texture->image2D(0, gl::GL_RGBA, glm::ivec2(w, h), 0, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE, image_ptr);
 
 	SOIL_free_image_data(image_ptr);
@@ -245,9 +246,33 @@ BufferRef parse_vbo(aiMesh* assimp_mesh)
 		vertex.uv = to_glm(assimp_mesh->mTextureCoords[0][i]);
 	}
 
+	vbo->bind(gl::GL_VERTEX_ARRAY);
 	vbo->setData(data, gl::GL_STATIC_DRAW);
 
 	return vbo;
+}
+
+BufferRef parse_ebo(aiMesh* assimp_mesh)
+{
+	BufferRef ebo = globjects::Buffer::create();
+
+	std::vector<uint32_t> data;
+	data.reserve(assimp_mesh->mNumFaces * 3);
+
+	for (uint32_t i = 0; i < assimp_mesh->mNumFaces; ++i)
+	{
+		auto& face = assimp_mesh->mFaces[i];
+
+		for (uint32_t j = 0; j < face.mNumIndices; ++j)
+		{
+			data.emplace_back(face.mIndices[j]);
+		}
+	}
+
+	ebo->bind(gl::GL_ELEMENT_ARRAY_BUFFER);
+	ebo->setData(data, gl::GL_STATIC_DRAW);
+
+	return ebo;
 }
 
 MeshRef parse_mesh(aiMesh* assimp_mesh, const MaterialList& materials)
@@ -260,6 +285,7 @@ MeshRef parse_mesh(aiMesh* assimp_mesh, const MaterialList& materials)
 	assert(assimp_mesh->HasTangentsAndBitangents());
 
 	mesh->vbo = parse_vbo(assimp_mesh);
+	mesh->ebo = parse_ebo(assimp_mesh);
 
 	return mesh;
 }
