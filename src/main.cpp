@@ -1,8 +1,8 @@
 #define GLFW_INCLUDE_NONE
 #include <iostream>
-#include "model_importer.h"
-
 #include <GLFW/glfw3.h>
+#include <spdlog/spdlog.h>
+#include "model_importer.h"
 
 int main()
 {
@@ -17,6 +17,9 @@ int main()
 		return glfwGetProcAddress(name);
 	});
 
-	ModelImporter::load("blah.glb");
+	auto model = ModelImporter::load("blah.glb");
+
+	spdlog::info("Model loaded: {0}", model != nullptr);
+
 	return EXIT_SUCCESS;
 }

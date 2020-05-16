@@ -270,7 +270,7 @@ BufferRef parse_ebo(aiMesh* assimp_mesh, uint32_t& index_count)
 	BufferRef ebo = globjects::Buffer::create();
 
 	std::vector<uint32_t> data;
-	data.reserve(assimp_mesh->mNumFaces * 3);
+	data.reserve(static_cast<size_t>(assimp_mesh->mNumFaces * 3));
 
 	for (uint32_t i = 0; i < assimp_mesh->mNumFaces; ++i)
 	{
@@ -362,6 +362,28 @@ MeshList parse_meshes(aiMesh** assimp_meshes, uint32_t mesh_count, const Materia
 	return meshes;
 }
 
+NodeRef parse_nodes(aiNode* assimp_node, const MeshList& meshes)
+{
+	NodeRef node = std::make_shared<Node>();
+
+	node->transform = to_glm(assimp_node->mTransformation);
+
+	for (uint32_t i = 0; i < assimp_node->mNumMeshes; ++i)
+	{
+		auto mesh_index = assimp_node->mMeshes[i];
+		assert(mesh_index < meshes.size());
+
+		node->meshes.emplace_back(meshes[mesh_index]);
+	}
+
+	for (uint32_t i = 0; i < assimp_node->mNumChildren; ++i)
+	{
+		node->childs.emplace_back(parse_nodes(assimp_node->mChildren[i], meshes));
+	}
+
+	return node;
+}
+
 NodeRef ModelImporter::load(const std::string& filename)
 {
 	Assimp::Importer importer;
@@ -384,6 +406,8 @@ NodeRef ModelImporter::load(const std::string& filename)
 		auto textures = parse_textures(scene->mTextures, scene->mNumTextures);
 		auto materials = parse_materials(scene->mMaterials, scene->mNumMaterials, textures, scene);
 		auto meshes = parse_meshes(scene->mMeshes, scene->mNumMeshes, materials);
+
+		return parse_nodes(scene->mRootNode, meshes);
 	}
 	catch (const std::exception& e)
 	{

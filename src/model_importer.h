@@ -3,7 +3,6 @@
 #include <string>
 #include <glm/glm.hpp>
 #include <vector>
-#include "material.h"
 #include "node.h"
 
 class ModelImporter
