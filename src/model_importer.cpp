@@ -32,9 +32,9 @@ uint32_t get_importer_flags()
 		aiProcess_FlipUVs;
 }
 
-std::shared_ptr<globjects::Texture> parse_texture(aiTexture* assimp_texture)
+TextureRef parse_texture(aiTexture* assimp_texture)
 {
-	std::shared_ptr<globjects::Texture> texture = globjects::Texture::create();
+	TextureRef texture = globjects::Texture::create();
 
 	texture->setParameter(gl::GL_TEXTURE_MIN_FILTER, gl::GL_LINEAR_MIPMAP_LINEAR);
 	texture->setParameter(gl::GL_TEXTURE_MAG_FILTER, gl::GL_LINEAR);
@@ -64,9 +64,11 @@ std::shared_ptr<globjects::Texture> parse_texture(aiTexture* assimp_texture)
 	return texture;
 }
 
-std::vector<std::shared_ptr<globjects::Texture>> parse_textures(aiTexture** assimp_textures, uint32_t texture_count)
+using TextureList = std::vector<TextureRef>;
+
+TextureList parse_textures(aiTexture** assimp_textures, uint32_t texture_count)
 {
-	std::vector<std::shared_ptr<globjects::Texture>> textures;
+	TextureList textures;
 
 	for (uint32_t i = 0; i < texture_count; ++i)
 	{
@@ -74,6 +76,141 @@ std::vector<std::shared_ptr<globjects::Texture>> parse_textures(aiTexture** assi
 	}
 
 	return textures;
+}
+
+int get_texture_index(const char* name, const aiScene* scene)
+{
+	if ('*' == *name) 
+	{
+		int index = std::atoi(name + 1);
+
+		if (0 > index || scene->mNumTextures <= static_cast<unsigned>(index))
+		{
+			return -1;
+		}
+		return index;
+	}
+
+	// lookup using filename
+	const char* shortFilename = scene->GetShortFilename(name);
+	for (unsigned int i = 0; i < scene->mNumTextures; i++) 
+	{
+		const char* shortTextureFilename = scene->GetShortFilename(scene->mTextures[i]->mFilename.C_Str());
+		if (strcmp(shortTextureFilename, shortFilename) == 0) 
+		{
+			return static_cast<int>(i);
+		}
+	}
+
+	spdlog::error("Can't parse texture index");
+	return -1;
+}
+
+MaterialRef parse_material(aiMaterial* assimp_material, TextureList textures, const aiScene* scene)
+{
+	MaterialRef material = std::make_shared<Material>();
+
+	//DIFFUSE
+	{
+		aiString path;
+		if (assimp_material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS)
+		{
+			if (path.length > 0)
+			{
+				auto index = get_texture_index(path.data, scene);
+
+				if (index >= 0)
+				{
+					material->albedo = textures[index];
+				}
+			}
+		}
+
+		if (!material->albedo)
+		{
+			if (assimp_material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE,
+				&path) == AI_SUCCESS)
+			{
+				if (path.length > 0)
+				{
+					auto index = get_texture_index(path.data, scene);
+
+					if (index >= 0)
+					{
+						material->albedo = textures[index];
+					}
+				}
+			}
+		}
+	}
+
+	//NORMALMAP
+	{
+		aiString path;
+		if (assimp_material->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS)
+		{
+			if (path.length > 0)
+			{
+				auto index = get_texture_index(path.data, scene);
+
+				if (index >= 0)
+				{
+					material->normalMap = textures[index];
+				}
+			}
+		}
+
+		if (!material->normalMap)
+		{
+			if (assimp_material->GetTexture(aiTextureType_HEIGHT, 0, &path) == AI_SUCCESS)
+			{
+				if (path.length > 0)
+				{
+					auto index = get_texture_index(path.data, scene);
+
+					if (index >= 0)
+					{
+						material->normalMap = textures[index];
+					}
+				}
+			}
+		}
+	}
+
+	//AO_METALLIC_ROUGHNESS
+	{
+		aiString path;
+		if (assimp_material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE,
+			&path) == AI_SUCCESS)
+		{
+			if (path.length > 0)
+			{
+				auto index = get_texture_index(path.data, scene);
+
+				if (index >= 0)
+				{
+					material->aoRoughnessMetallic = textures[index];
+				}
+			}
+		}
+	}
+
+	return material;
+}
+
+using MaterialList = std::vector<MaterialRef>;
+
+MaterialList parse_materials(aiMaterial** assimp_materials, uint32_t material_count, TextureList textures,
+	const aiScene* scene)
+{
+	MaterialList materials;
+
+	for (uint32_t i = 0; i < material_count; ++i)
+	{
+		materials.emplace_back(parse_material(assimp_materials[i], textures, scene));
+	}
+
+	return materials;
 }
 
 NodeRef ModelImporter::load(const std::string& filename)
@@ -96,6 +233,7 @@ NodeRef ModelImporter::load(const std::string& filename)
 	try
 	{
 		auto textures = parse_textures(scene->mTextures, scene->mNumTextures);
+		auto materials = parse_materials(scene->mMaterials, scene->mNumMaterials, textures, scene);
 	}
 	catch (const std::exception& e)
 	{

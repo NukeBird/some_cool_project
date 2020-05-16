@@ -2,11 +2,13 @@
 #include <memory>
 #include <globjects/globjects.h>
 
+using TextureRef = std::shared_ptr<globjects::Texture>;
+
 struct Material
 {
-	std::shared_ptr<globjects::Texture> albedo;
-	std::shared_ptr<globjects::Texture> normalMap;
-	std::shared_ptr<globjects::Texture> aoRoughnessMetallic;
+	TextureRef albedo;
+	TextureRef normalMap;
+	TextureRef aoRoughnessMetallic;
 };
 
 using MaterialRef = std::shared_ptr<Material>;
