@@ -1,15 +1,22 @@
+#define GLFW_INCLUDE_NONE
 #include <iostream>
+#include "model_importer.h"
 
-#include <globjects/globjects.h>
 #include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
-#include <assimp/Importer.hpp>
-#include <SOIL2/SOIL2.h>
-#include <spdlog/spdlog.h>
 
 int main()
 {
-	glfwInit(); //test
 	std::cout << "Oh hi Mark" << std::endl;
+
+	glfwInit();
+	auto w = glfwCreateWindow(1, 1, "", 0, 0);
+	glfwMakeContextCurrent(w);
+
+	globjects::init([](const char* name) 
+	{
+		return glfwGetProcAddress(name);
+	});
+
+	ModelImporter::load("blah.glb");
 	return EXIT_SUCCESS;
 }
