@@ -8,6 +8,7 @@
 #include <spdlog/spdlog.h>
 #include <SOIL2/SOIL2.h>
 #include <stdexcept>
+#include <cassert>
 
 uint32_t get_importer_flags()
 {
@@ -26,7 +27,7 @@ uint32_t get_importer_flags()
 		aiProcess_SplitLargeMeshes |
 		aiProcess_Triangulate |
 		aiProcess_GenUVCoords |
-		aiProcess_GenBoundingBoxes | //TODO
+		aiProcess_GenBoundingBoxes |
 		aiProcess_SplitByBoneCount |
 		aiProcess_SortByPType |
 		aiProcess_FlipUVs;
@@ -106,7 +107,7 @@ int get_texture_index(const char* name, const aiScene* scene)
 	return -1;
 }
 
-MaterialRef parse_material(aiMaterial* assimp_material, TextureList textures, const aiScene* scene)
+MaterialRef parse_material(aiMaterial* assimp_material, const TextureList& textures, const aiScene* scene)
 {
 	MaterialRef material = std::make_shared<Material>();
 
@@ -200,7 +201,7 @@ MaterialRef parse_material(aiMaterial* assimp_material, TextureList textures, co
 
 using MaterialList = std::vector<MaterialRef>;
 
-MaterialList parse_materials(aiMaterial** assimp_materials, uint32_t material_count, TextureList textures,
+MaterialList parse_materials(aiMaterial** assimp_materials, uint32_t material_count, const TextureList& textures,
 	const aiScene* scene)
 {
 	MaterialList materials;
@@ -211,6 +212,70 @@ MaterialList parse_materials(aiMaterial** assimp_materials, uint32_t material_co
 	}
 
 	return materials;
+}
+
+struct Vertex
+{
+	glm::vec3 position;
+	glm::vec3 normal;
+	glm::vec3 tangent;
+	glm::vec3 bitangent;
+	glm::vec2 uv;
+};
+
+glm::vec3 to_glm(const aiVector3D& v)
+{
+	return { v.x, v.y, v.z };
+}
+
+BufferRef parse_vbo(aiMesh* assimp_mesh)
+{
+	BufferRef vbo = globjects::Buffer::create();
+
+	std::vector<Vertex> data;
+	data.resize(assimp_mesh->mNumVertices);
+
+	for (uint32_t i = 0; i < assimp_mesh->mNumVertices; ++i)
+	{
+		auto& vertex = data[i];
+		vertex.position = to_glm(assimp_mesh->mVertices[i]);
+		vertex.normal = to_glm(assimp_mesh->mNormals[i]);
+		vertex.tangent = to_glm(assimp_mesh->mTangents[i]);
+		vertex.bitangent = to_glm(assimp_mesh->mBitangents[i]);
+		vertex.uv = to_glm(assimp_mesh->mTextureCoords[0][i]);
+	}
+
+	vbo->setData(data, gl::GL_STATIC_DRAW);
+
+	return vbo;
+}
+
+MeshRef parse_mesh(aiMesh* assimp_mesh, const MaterialList& materials)
+{
+	MeshRef mesh = std::make_shared<Mesh>();
+
+	assert(assimp_mesh->HasPositions());
+	assert(assimp_mesh->HasTextureCoords(0));
+	assert(assimp_mesh->HasNormals());
+	assert(assimp_mesh->HasTangentsAndBitangents());
+
+	mesh->vbo = parse_vbo(assimp_mesh);
+
+	return mesh;
+}
+
+using MeshList = std::vector<MeshRef>;
+
+MeshList parse_meshes(aiMesh** assimp_meshes, uint32_t mesh_count, const MaterialList& materials)
+{
+	MeshList meshes;
+
+	for (uint32_t i = 0; i < mesh_count; ++i)
+	{
+		meshes.emplace_back(parse_mesh(assimp_meshes[i], materials));
+	}
+
+	return meshes;
 }
 
 NodeRef ModelImporter::load(const std::string& filename)
@@ -234,6 +299,7 @@ NodeRef ModelImporter::load(const std::string& filename)
 	{
 		auto textures = parse_textures(scene->mTextures, scene->mNumTextures);
 		auto materials = parse_materials(scene->mMaterials, scene->mNumMaterials, textures, scene);
+		auto meshes = parse_meshes(scene->mMeshes, scene->mNumMeshes, materials);
 	}
 	catch (const std::exception& e)
 	{

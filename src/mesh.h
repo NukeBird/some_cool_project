@@ -3,11 +3,14 @@
 #include <memory>
 #include <globjects/globjects.h>
 
+using BufferRef = std::unique_ptr<globjects::Buffer>;
+using VertexArrayRef = std::unique_ptr<globjects::VertexArray>;
+
 struct Mesh
 {
-	std::unique_ptr<globjects::Buffer> vbo;
-	std::unique_ptr<globjects::Buffer> ebo;
-	std::unique_ptr<globjects::VertexArray> vao;
+	BufferRef vbo;
+	BufferRef ebo;
+	VertexArrayRef vao;
 	uint32_t index_count;
 	AABB box;
 };
