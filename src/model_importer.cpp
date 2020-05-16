@@ -15,6 +15,9 @@
 #include <globjects/VertexArray.h>
 #include <globjects/VertexAttributeBinding.h>
 
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 uint32_t get_importer_flags()
 {
 	return aiProcess_GenSmoothNormals | //can't be specified with aiProcess_GenNormals
@@ -232,6 +235,11 @@ struct Vertex
 glm::vec3 to_glm(const aiVector3D& v)
 {
 	return { v.x, v.y, v.z };
+}
+
+glm::mat4 to_glm(const aiMatrix4x4& m)
+{
+	return glm::transpose(glm::make_mat4(&m.a1));
 }
 
 BufferRef parse_vbo(aiMesh* assimp_mesh)
