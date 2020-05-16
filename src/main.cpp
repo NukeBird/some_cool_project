@@ -1,25 +1,35 @@
 #define GLFW_INCLUDE_NONE
 #include <iostream>
+
+#include <globjects/globjects.h>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <assimp/Importer.hpp>
+#include <SOIL2/SOIL2.h>
 #include <spdlog/spdlog.h>
 #include "model_importer.h"
 
+#include "glfw_window.h"
+
+using namespace std::literals;
+
 int main()
 {
-	std::cout << "Oh hi Mark" << std::endl;
+	GlfwWindow window;
+	window.
+		setWindowLabel("Oh hi Mark"s).
+		setWindowSize(800, 600);
 
-	glfwInit();
-	auto w = glfwCreateWindow(1, 1, "", 0, 0);
-	glfwMakeContextCurrent(w);
-
-	globjects::init([](const char* name) 
+	window.InitializeCallback = []
 	{
-		return glfwGetProcAddress(name);
-	});
+		auto model = ModelImporter::load("data/matball.glb");
 
-	auto model = ModelImporter::load("data/matball.glb");
+		spdlog::info("Model loaded: {0}", model != nullptr);
+	};
 
-	spdlog::info("Model loaded: {0}", model != nullptr);
+	window.Run();
+
+
 
 	return EXIT_SUCCESS;
 }
