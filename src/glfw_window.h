@@ -27,17 +27,21 @@ struct MousePos
 class GlfwWindow
 {
 public:
+    GlfwWindow() = default;
+    virtual ~GlfwWindow();
+
     void Run();
 
     //TODO: probably all this functions should be made thread-safe or made available only from callbacks(for example moved to some helper class)
     GlfwWindow& setWindowLabel(const std::string& label);
-    const std::string& getWindowLabel() const { return m_windowLabel; }
+    const std::string& getWindowLabel() const { return window_label; }
 
     GlfwWindow& setWindowSize(int width, int height);
-    const glm::ivec2& getWindowSize() const { return m_windowSize; }
+    const glm::ivec2& getWindowSize() const { return window_size; }
 
     GlfwWindow& setVSyncInterval(int interval);
     GlfwWindow& setWindowCloseFlag(bool flag);
+    GlfwWindow& setNumMsaaSamples(int samples = 0);
 
     //event callbacks
     std::function<void(void)> InitializeCallback;
@@ -68,18 +72,18 @@ protected:
     { 
         if (ResizeCallback != nullptr) ResizeCallback(newSize); 
 
-        m_windowSize = newSize;
+        window_size = newSize;
     }
     GLFW_WRAPPER_VIRTUAL void OnClosing() const { if (ClosingCallback != nullptr) ClosingCallback(); }
     
     GLFW_WRAPPER_VIRTUAL void OnMouseMove(glm::vec2& mousePosition) const 
     {
-        mousePosition.y = m_windowSize.y - mousePosition.y; //WTF?
+        mousePosition.y = window_size.y - mousePosition.y; //WTF?
 
         if (MouseMoveCallback != nullptr) 
-            MouseMoveCallback(MousePos{ mousePosition, m_lastMousePos });
+            MouseMoveCallback(MousePos{ mousePosition, previous_mouse_pos });
 
-        m_lastMousePos = mousePosition;
+        previous_mouse_pos = mousePosition;
     }
     GLFW_WRAPPER_VIRTUAL void OnMouseDown(int button) const { if (MouseDownCallback != nullptr) MouseDownCallback(button); }
     GLFW_WRAPPER_VIRTUAL void OnMouseUp(int button) const { if (MouseUpCallback != nullptr) MouseUpCallback(button); }
@@ -88,7 +92,6 @@ protected:
     void Render();
 
     static GlfwWindow* FromNativeWindow(const GLFWwindow* window);
-
     static void TryUpdateGlBindings();
 
 private:
@@ -100,15 +103,16 @@ private:
     const int OpenGL_Context_Version_Minor = 3;
 
 private:
-    GLFWwindow * m_window = nullptr;
+    GLFWwindow* window_impl = nullptr;
 
-    std::string m_windowLabel = "New window";
+    std::string window_label = "New window";
+    int num_msaa_samples = 0;
 
     //mutables is just for track some parameters in callbacks
-    mutable glm::ivec2 m_windowSize = glm::ivec2(800, 600);
-    mutable glm::vec2 m_lastMousePos;
+    mutable glm::ivec2 window_size = glm::ivec2(800, 600);
+    mutable glm::vec2 previous_mouse_pos;
 
-    double m_previousRenderTime = 0.0;
+    double previous_render_time = 0.0;
 };
 
 #endif
