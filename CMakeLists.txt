@@ -14,3 +14,5 @@ add_executable(some_cool_project ${PROJECT_SOURCES})
 target_link_libraries(some_cool_project glm assimp::assimp globjects::globjects
 	glfw spdlog::spdlog spdlog::spdlog_header_only soil2)
 target_compile_definitions(some_cool_project PRIVATE GLFW_INCLUDE_NONE)
+
+set_property(TARGET some_cool_project PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
