@@ -10,6 +10,11 @@
 #include <stdexcept>
 #include <cassert>
 
+#include <glbinding/gl/gl.h>
+#include <globjects/globjects.h>
+#include <globjects/VertexArray.h>
+#include <globjects/VertexAttributeBinding.h>
+
 uint32_t get_importer_flags()
 {
 	return aiProcess_GenSmoothNormals | //can't be specified with aiProcess_GenNormals
@@ -293,6 +298,41 @@ MeshRef parse_mesh(aiMesh* assimp_mesh, const MaterialList& materials)
 
 	mesh->box.min = to_glm(assimp_aabb.mMin);
 	mesh->box.max = to_glm(assimp_aabb.mMax);
+
+	mesh->vao = globjects::VertexArray::create();
+	mesh->vao->bindElementBuffer(mesh->ebo.get());
+
+	auto position_binding = mesh->vao->binding(0);
+	position_binding->setAttribute(0);
+	position_binding->setBuffer(mesh->vbo.get(), offsetof(Vertex, position), sizeof(Vertex));
+	position_binding->setFormat(3, gl::GL_FLOAT, false);
+	mesh->vao->enable(0);
+
+	auto normal_binding = mesh->vao->binding(1);
+	normal_binding->setAttribute(1);
+	normal_binding->setBuffer(mesh->vbo.get(), offsetof(Vertex, normal), sizeof(Vertex));
+	normal_binding->setFormat(3, gl::GL_FLOAT, false);
+	mesh->vao->enable(1);
+
+	auto tangent_binding = mesh->vao->binding(2);
+	tangent_binding->setAttribute(2);
+	tangent_binding->setBuffer(mesh->vbo.get(), offsetof(Vertex, tangent), sizeof(Vertex));
+	tangent_binding->setFormat(3, gl::GL_FLOAT, false);
+	mesh->vao->enable(2);
+
+	auto bitangent_binding = mesh->vao->binding(3);
+	bitangent_binding->setAttribute(3);
+	bitangent_binding->setBuffer(mesh->vbo.get(), offsetof(Vertex, bitangent), sizeof(Vertex));
+	bitangent_binding->setFormat(3, gl::GL_FLOAT, false);
+	mesh->vao->enable(3);
+
+	auto uv_binding = mesh->vao->binding(4);
+	bitangent_binding->setAttribute(4);
+	bitangent_binding->setBuffer(mesh->vbo.get(), offsetof(Vertex, uv), sizeof(Vertex));
+	bitangent_binding->setFormat(2, gl::GL_FLOAT, false);
+	mesh->vao->enable(4);
+
+	mesh->vao->unbind();
 
 	return mesh;
 }
