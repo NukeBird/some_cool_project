@@ -20,6 +20,8 @@ TextureRef TextureImporter::load(const std::string& filename)
 	texture->setParameter(gl::GL_TEXTURE_SWIZZLE_B, imageFormat.Swizzles[2]);
 	texture->setParameter(gl::GL_TEXTURE_SWIZZLE_A, imageFormat.Swizzles[3]);
 
+	texture->bind();
+
 	glm::tvec3<gl::GLsizei> extent{ image.extent() };
     const auto faceTotal = static_cast<gl::GLsizei>(image.layers() * image.faces());
 
@@ -33,7 +35,7 @@ TextureRef TextureImporter::load(const std::string& filename)
 	case gli::TARGET_CUBE:
         texture->storage2D(
 			static_cast<gl::GLint>(image.levels()), static_cast<gl::GLenum>(imageFormat.Internal),
-			extent.x, image.target() == gli::TARGET_2D ? extent.y : faceTotal);
+			extent.x, image.target() == gli::TARGET_1D_ARRAY ? faceTotal : extent.y);
 		break;
 	case gli::TARGET_2D_ARRAY:
 	case gli::TARGET_3D:
@@ -62,13 +64,11 @@ TextureRef TextureImporter::load(const std::string& filename)
 				{
 				case gli::TARGET_1D:
 					if (gli::is_compressed(image.format()))
-
-						throw std::exception("gl::glCompressedTexSubImage1D Not implemented");
-     //                   gl::glCompressedTexSubImage1D(
-					//		Target, static_cast<gl::GLint>(level), 0, extent.x,
-					//		imageFormat.Internal, static_cast<gl::GLsizei>(image.size(level)),
-					//		image.data(layer, face, level));
-					//else
+                        gl::glCompressedTexSubImage1D(
+							imageTarget, static_cast<gl::GLint>(level), 0, extent.x,
+							static_cast<gl::GLenum>(imageFormat.Internal), static_cast<gl::GLsizei>(image.size(level)),
+							image.data(layer, face, level));
+					else
 						texture->subImage1D( static_cast<gl::GLint>(level), 0, extent.x,
 							static_cast<gl::GLenum>(imageFormat.External), static_cast<gl::GLenum>(imageFormat.Type),
 							image.data(layer, face, level));
@@ -77,16 +77,16 @@ TextureRef TextureImporter::load(const std::string& filename)
 				case gli::TARGET_2D:
 				case gli::TARGET_CUBE:
 					if (gli::is_compressed(image.format()))
-						throw std::exception("gl::glCompressedTexSubImage2D Not implemented");
-       //                 gl::glCompressedTexSubImage2D(
-							//Target, static_cast<gl::GLint>(level),
-							//0, 0,
-							//extent.x,
-							//image.target() == gli::TARGET_1D_ARRAY ? layerGL : extent.y,
-							//imageFormat.Internal, static_cast<gl::GLsizei>(image.size(level)),
-							//image.data(layer, face, level));
+				         gl::glCompressedTexSubImage2D(
+							 imageTarget, static_cast<gl::GLint>(level),
+							 0, 0,
+							 extent.x,
+							 image.target() == gli::TARGET_1D_ARRAY ? layerGL : extent.y,
+							 static_cast<gl::GLenum>(imageFormat.Internal), static_cast<gl::GLsizei>(image.size(level)),
+							 image.data(layer, face, level));
 					else
-                        texture->subImage2D(
+						gl::glTexSubImage2D(
+							imageTarget,
 					        static_cast<gl::GLint>(level),
 							0, 0,
 							extent.x,
@@ -98,14 +98,13 @@ TextureRef TextureImporter::load(const std::string& filename)
 				case gli::TARGET_3D:
 				case gli::TARGET_CUBE_ARRAY:
 					if (gli::is_compressed(image.format()))
-						throw std::exception("gl::glCompressedTexSubImage3D Not implemented");
-       //                 gl::glCompressedTexSubImage3D(
-							//Target, static_cast<gl::GLint>(level),
-							//0, 0, 0,
-							//extent.x, extent.y,
-							//image.target() == gli::TARGET_3D ? extent.z : layerGL,
-							//imageFormat.Internal, static_cast<gl::GLsizei>(image.size(level)),
-							//image.data(layer, face, level));
+                        gl::glCompressedTexSubImage3D(
+							imageTarget, static_cast<gl::GLint>(level),
+							0, 0, 0,
+							extent.x, extent.y,
+							image.target() == gli::TARGET_3D ? extent.z : layerGL,
+							static_cast<gl::GLenum>(imageFormat.Internal), static_cast<gl::GLsizei>(image.size(level)),
+							image.data(layer, face, level));
 					else
                         texture->subImage3D(
 					        static_cast<gl::GLint>(level),
