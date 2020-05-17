@@ -7,11 +7,15 @@
 #include <assimp/Importer.hpp>
 #include <SOIL2/SOIL2.h>
 #include <spdlog/spdlog.h>
+
 #include "model_importer.h"
+#include "texture_importer.h"
 
 #include "glfw_window.h"
 
 using namespace std::literals;
+
+
 
 int main()
 {
@@ -23,6 +27,7 @@ int main()
 	window.InitializeCallback = []
 	{
 		auto model = ModelImporter::load("data/matball.glb");
+		auto texture = TextureImporter::load("data/skybox.dds");
 
 		spdlog::info("Model loaded: {0}", model != nullptr);
 	};
