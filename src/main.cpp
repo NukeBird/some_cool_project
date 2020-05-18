@@ -110,6 +110,7 @@ public:
 
 		for (const auto& mesh : node->meshes)
 		{
+			rc.applyCameraUniforms();
 			rc.applyMaterial(mesh->material);
 
 			mesh->vao->bind();
@@ -165,7 +166,7 @@ private:
     {
 		//camera.setProjection(glm::perspective())
 
-		scene.addNode(ModelImporter::load("data/matball.glb"));
+		scene.addNode(ModelImporter::load("data/matball.glb"), glm::scale(glm::mat4{1.0f}, {10, 10, 10}));
 
 		program_skybox = ShaderImporter::load({ "data/shaders/sky.vs.glsl"s, "data/shaders/sky.fs.glsl"s });
 		program_mesh = ShaderImporter::load({ "data/shaders/mesh.vs.glsl", "data/shaders/mesh.fs.glsl" });
@@ -180,6 +181,7 @@ private:
 		camera.setView(glm::lookAt(glm::vec3{ 100.0, 10.0, 0.0 }, { 0.0, 0.0, 0.0 }, {0.0, 1.0, 0.0}));
 
 		gl::glEnable(gl::GLenum::GL_DEPTH_TEST);
+		gl::glEnable(gl::GLenum::GL_CULL_FACE);
     }
 
 
@@ -202,6 +204,7 @@ private:
 			camera.setPosition(camera.getPosition() + camera.getLeft() * moveSpeed);
 		if (window.isKeyDown(GLFW_KEY_D))
 			camera.setPosition(camera.getPosition() - camera.getLeft() * moveSpeed);
+
 
 		rc.transforms.reset(camera.getView(), camera.getProjection());
 
