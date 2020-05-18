@@ -12,19 +12,28 @@ public:
         Recalculate();
     }
 
-    glm::vec3 getLeft() const noexcept { return glm::vec3(1.0f, 0.0f, 0.0f) * orientation; }
-    glm::vec3 getUp() const noexcept { return glm::vec3(0.0f, 1.0f, 0.0f) * orientation; }
-    glm::vec3 getForward() const noexcept { return glm::vec3(0.0f, 0.0f, 1.0) * orientation; }
+    glm::vec3 getLeft() const noexcept { return { view[0][0], view[1][0], view[2][0] }; }
+    glm::vec3 getUp() const noexcept { return { view[0][1], view[1][1], view[2][1] }; }
+    glm::vec3 getForward() const noexcept { return { view[0][2], view[1][2], view[2][2] }; }
 
     const glm::vec3& getPosition() const noexcept { return position;  }
+    const glm::quat& getRotation() const noexcept { return rotation; }
     const glm::mat4& getView() const noexcept { return view; }
     const glm::mat4& getProjection() const noexcept { return projection; }
+
+    Camera& setRotation(const glm::quat& newRotation)
+    {
+        rotation = newRotation;
+        Recalculate();
+
+        return *this;
+    }
 
     Camera& setView(const glm::mat4& newView)
     {
         glm::vec3 scale, skew;
         glm::vec4 perspective;
-        glm::decompose(newView, scale, orientation, position, skew, perspective);
+        glm::decompose(newView, scale, rotation, position, skew, perspective);
 
         Recalculate();
 
@@ -34,23 +43,25 @@ public:
     Camera& setProjection(const glm::mat4& newProjection)
     {
         projection = newProjection;
+
         return *this;
     }
 
 private:
     void Recalculate()
     {
-        view = glm::translate(glm::mat4{1.0f}, position) * glm::mat4_cast(orientation);
+        //rotation = normalize(rotation);
+        view = glm::translate(glm::mat4{1.0f}, position) * glm::mat4_cast(rotation);
         //glm::rotation()
     }
 
 private:
     //primary values
     glm::vec3 position {0, 0, 0 };
-    glm::quat orientation {1.0f, 0.0f, 0.0f, 0.0f};
+    glm::quat rotation {1.0f, 0.0f, 0.0f, 0.0f};
     glm::mat4 projection {1.0};
     
-    //cached values
+    //derived values
     glm::mat4 view;
     
 };
