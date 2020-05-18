@@ -97,8 +97,9 @@ public:
 			const auto relativePos = pos.getPos() / static_cast<glm::vec2>(window.getSize());
 
 			camera.setRotation(
-				glm::angleAxis(glm::mix(-glm::pi<float>() / 2, glm::pi<float>() / 2, relativePos.y), glm::vec3{ -1.0, 0.0, 0.0 }) *
-				glm::angleAxis(glm::mix(-glm::pi<float>(), glm::pi<float>(), relativePos.x), glm::vec3{ 0.0, 1.0, 0.0 })
+				 
+				glm::angleAxis(glm::mix(-glm::pi<float>(), glm::pi<float>(), relativePos.x), glm::vec3{ 0.0, -1.0, 0.0 }) *
+				glm::angleAxis(glm::mix(-glm::pi<float>() / 2, glm::pi<float>() / 2, relativePos.y), glm::vec3{ 1.0, 0.0, 0.0 })
 			);
 		};
 
@@ -124,6 +125,9 @@ private:
 		fullscreenQuad = makeFullscreenQuad();
 
 		camera.setView(glm::lookAt(glm::vec3{ 100.0, 10.0, 0.0 }, { 0.0, 0.0, 0.0 }, {0.0, 1.0, 0.0}));
+		auto f = camera.getForward();
+		auto l = camera.getLeft();
+		auto u = camera.getUp();
     }
 
 

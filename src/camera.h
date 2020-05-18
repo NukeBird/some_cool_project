@@ -12,13 +12,17 @@ public:
         Recalculate();
     }
 
-    glm::vec3 getLeft() const noexcept { return { view[0][0], view[1][0], view[2][0] }; }
-    glm::vec3 getUp() const noexcept { return { view[0][1], view[1][1], view[2][1] }; }
-    glm::vec3 getForward() const noexcept { return { view[0][2], view[1][2], view[2][2] }; }
+    //world-space axises
+    const glm::vec3& getLeft() const noexcept { return view_inverse[0]; }
+    const glm::vec3& getUp() const noexcept { return view_inverse[1]; }
+    const glm::vec3& getForward() const noexcept { return view_inverse[2]; }
 
+    //world-space orientation
     const glm::vec3& getPosition() const noexcept { return position;  }
     const glm::quat& getRotation() const noexcept { return rotation; }
+
     const glm::mat4& getView() const noexcept { return view; }
+    const glm::mat4& getViewInverse() const noexcept { return view_inverse; }
     const glm::mat4& getProjection() const noexcept { return projection; }
 
     Camera& setRotation(const glm::quat& newRotation)
@@ -33,8 +37,9 @@ public:
     {
         glm::vec3 scale, skew;
         glm::vec4 perspective;
-        glm::decompose(newView, scale, rotation, position, skew, perspective);
+        glm::decompose(glm::inverse(newView), scale, rotation, position, skew, perspective);
 
+        //right now could be optimized by manual view and view_inverse assigning
         Recalculate();
 
         return *this;
@@ -51,7 +56,9 @@ private:
     void Recalculate()
     {
         //rotation = normalize(rotation);
-        view = glm::translate(glm::mat4{1.0f}, position) * glm::mat4_cast(rotation);
+        view_inverse = glm::translate(glm::mat4{ 1.0f }, position) * glm::mat4_cast(rotation);
+        view = glm::inverse(view_inverse);
+
         //glm::rotation()
     }
 
@@ -62,6 +69,6 @@ private:
     glm::mat4 projection {1.0};
     
     //derived values
-    glm::mat4 view;
+    glm::mat4 view, view_inverse;
     
 };
