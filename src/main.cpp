@@ -10,6 +10,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <assimp/Importer.hpp>
+#include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/enum.h>
 #include <globjects/VertexAttributeBinding.h>
 #include <SOIL2/SOIL2.h>
@@ -177,6 +178,8 @@ private:
 		fullscreenQuad = makeFullscreenQuad();
 
 		camera.setView(glm::lookAt(glm::vec3{ 100.0, 10.0, 0.0 }, { 0.0, 0.0, 0.0 }, {0.0, 1.0, 0.0}));
+
+		gl::glEnable(gl::GLenum::GL_DEPTH_TEST);
     }
 
 
@@ -189,26 +192,29 @@ private:
     }
 
 	void OnRender(double time, double deltaTime)
-    {
+	{
 		const float moveSpeed = deltaTime * 50.0f;
 		if (window.isKeyDown(GLFW_KEY_W))
 			camera.setPosition(camera.getPosition() + camera.getForward() * moveSpeed);
 		if (window.isKeyDown(GLFW_KEY_S))
 			camera.setPosition(camera.getPosition() - camera.getForward() * moveSpeed);
 		if (window.isKeyDown(GLFW_KEY_A))
-		    camera.setPosition(camera.getPosition() + camera.getLeft() * moveSpeed);
+			camera.setPosition(camera.getPosition() + camera.getLeft() * moveSpeed);
 		if (window.isKeyDown(GLFW_KEY_D))
-		    camera.setPosition(camera.getPosition() - camera.getLeft() * moveSpeed);
+			camera.setPosition(camera.getPosition() - camera.getLeft() * moveSpeed);
 
 		rc.transforms.reset(camera.getView(), camera.getProjection());
 
-        gl::glViewport(0, 0, window.getSize().x, window.getSize().y);
+		gl::glViewport(0, 0, window.getSize().x, window.getSize().y);
+		gl::glClear(gl::ClearBufferMask::GL_COLOR_BUFFER_BIT | gl::ClearBufferMask::GL_DEPTH_BUFFER_BIT);
 
 		//render background
 		rc.applyProgram(*program_skybox);
 		rc.applyCameraUniforms();
+
 		program_skybox->setUniform("source", 0);
 
+		gl::glDepthMask(false);
 		gl::glActiveTexture(gl::GLenum::GL_TEXTURE0 + 0);
 		skybox_texture->bind();
 		fullscreenQuad->vao->bind();
@@ -217,6 +223,7 @@ private:
 
 
 		//render scene
+		gl::glDepthMask(true);
 		rc.applyProgram(*program_mesh);
 		rc.applyCameraUniforms();
 		scene.render(rc);
