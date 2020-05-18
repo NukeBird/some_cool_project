@@ -4,7 +4,7 @@ layout(location = 0) in vec3 a_Position;
 layout(location = 1) in vec3 a_Normal;
 layout(location = 2) in vec3 a_Tangent;
 layout(location = 3) in vec3 a_Bitangent;
-layout(location = 4) in vec3 a_TexCoord;
+layout(location = 4) in vec2 a_TexCoord;
 
 
 uniform mat4 u_matProj, u_matInverseProj;
@@ -13,7 +13,7 @@ uniform mat3 u_matNormal;
 
 
 out fsInput {
-	vec3 texCoord;
+	vec2 texCoord;
 	vec3 normal;
 	vec3 position; //in view-space
 } result;

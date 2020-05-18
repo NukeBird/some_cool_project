@@ -11,7 +11,7 @@ uniform sampler2D u_texAoRoughnessMetallic;
 
 
 in fsInput {
-	vec3 texCoord;
+	vec2 texCoord;
 	vec3 normal;
 	vec3 position; //in view-space
 } interpolated;
@@ -42,9 +42,9 @@ void main()
 {
 	//vec3 normalFromMap = (texture(u_texNormalMap, interpolated.texCoord).rbg * 2.0 - 1.0)*vec3(1.0, 1.0, -1.0);
 
-	vec2 texCoord = interpolated.texCoord.st;
+	vec2 texCoord = interpolated.texCoord;
 
-	FragColor.rgba = texture (u_texAlbedo, texCoord.st*vec2(1,-1));
+	FragColor.rgba = texture (u_texAlbedo, texCoord);
 
 	vec3 normal = u_matNormal * interpolated.normal;
 	//FragNormal = vec4(normal, 1.0);
