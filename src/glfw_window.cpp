@@ -80,6 +80,7 @@ void GlfwWindow::Run()
 
     MakeContextCurrent();
     OnInitialize();
+    OnResize(getSize());
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window_impl))
@@ -102,7 +103,7 @@ void GlfwWindow::Render()
     glfwSwapBuffers(window_impl);
 }
 
-GlfwWindow& GlfwWindow::setWindowLabel(const std::string& label)
+GlfwWindow& GlfwWindow::setLabel(const std::string& label)
 {
     window_label = label;
     if (window_impl != nullptr)
@@ -120,7 +121,7 @@ GlfwWindow& GlfwWindow::setVSyncInterval(int interval)
     return *this;
 }
 
-GlfwWindow& GlfwWindow::setWindowCloseFlag(bool flag)
+GlfwWindow& GlfwWindow::setCloseFlag(bool flag)
 {
     MakeContextCurrent();
     glfwSetWindowShouldClose(window_impl, flag ? GLFW_TRUE : GLFW_FALSE);
@@ -142,7 +143,7 @@ GlfwWindow& GlfwWindow::setNumMsaaSamples(int samples)
     return *this;
 }
 
-GlfwWindow& GlfwWindow::setWindowSize(int width, int height)
+GlfwWindow& GlfwWindow::setSize(int width, int height)
 {
     window_size = glm::ivec2(width, height);
 

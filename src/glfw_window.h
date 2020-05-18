@@ -16,10 +16,20 @@ struct GlfwException : public std::runtime_error
     }
 };
 
-struct MousePos
+class MousePos
 {
-    glm::vec2 position;
-    glm::vec2 previousPosition;
+public:
+    MousePos() = default;
+    MousePos(const glm::vec2& pos, const glm::vec2& previousPos) : position(pos), previous_position(previousPos) {}
+    MousePos(const MousePos&) = default;
+    MousePos& operator=(const MousePos&) = default;
+
+    const glm::vec2& getPos() const noexcept { return position; }
+    glm::vec2 getDeltaPos() const noexcept { return position - previous_position; }
+    const glm::vec2& getPreviousPos() const noexcept { return previous_position; }
+
+private:
+    glm::vec2 position, previous_position;
 };
 
 #define GLFW_WRAPPER_VIRTUAL virtual
@@ -33,14 +43,14 @@ public:
     void Run();
 
     //TODO: probably all this functions should be made thread-safe or made available only from callbacks(for example moved to some helper class)
-    GlfwWindow& setWindowLabel(const std::string& label);
-    const std::string& getWindowLabel() const { return window_label; }
+    GlfwWindow& setLabel(const std::string& label);
+    const std::string& getLabel() const { return window_label; }
 
-    GlfwWindow& setWindowSize(int width, int height);
-    const glm::ivec2& getWindowSize() const { return window_size; }
+    GlfwWindow& setSize(int width, int height);
+    const glm::ivec2& getSize() const { return window_size; }
 
     GlfwWindow& setVSyncInterval(int interval);
-    GlfwWindow& setWindowCloseFlag(bool flag);
+    GlfwWindow& setCloseFlag(bool flag);
     GlfwWindow& setNumMsaaSamples(int samples = 0);
 
     //event callbacks
@@ -57,11 +67,11 @@ public:
     std::function<void(const MousePos&)> MouseMoveCallback;
     std::function<void(int)> MouseDownCallback;
     std::function<void(int)> MouseUpCallback;
-    std::function<void(const glm::vec2)> MouseScrollCallback;
+    std::function<void(glm::vec2)> MouseScrollCallback;
 
 protected:
-    GLFW_WRAPPER_VIRTUAL void OnInitialize() { if (InitializeCallback != nullptr) InitializeCallback(); }
-    GLFW_WRAPPER_VIRTUAL void OnRender(double time, double deltaTime) { if (RenderCallback != nullptr) RenderCallback(time, deltaTime); }
+    GLFW_WRAPPER_VIRTUAL void OnInitialize() const { if (InitializeCallback != nullptr) InitializeCallback(); }
+    GLFW_WRAPPER_VIRTUAL void OnRender(double time, double deltaTime) const { if (RenderCallback != nullptr) RenderCallback(time, deltaTime); }
     GLFW_WRAPPER_VIRTUAL void OnWindowRefreshing() const { if (RefreshingCallback != nullptr) RefreshingCallback(); }
 
     GLFW_WRAPPER_VIRTUAL void OnKeyDown(int key) const { if (KeyDownCallback != nullptr) KeyDownCallback(key); }
