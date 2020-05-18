@@ -42,6 +42,8 @@ public:
 
     void Run();
 
+    bool isKeyDown(int key_code) const { return pressed_keys.find(key_code) != std::end(pressed_keys); }
+
     //TODO: probably all this functions should be made thread-safe or made available only from callbacks(for example moved to some helper class)
     GlfwWindow& setLabel(const std::string& label);
     const std::string& getLabel() const { return window_label; }
@@ -74,8 +76,20 @@ protected:
     GLFW_WRAPPER_VIRTUAL void OnRender(double time, double deltaTime) const { if (RenderCallback != nullptr) RenderCallback(time, deltaTime); }
     GLFW_WRAPPER_VIRTUAL void OnWindowRefreshing() const { if (RefreshingCallback != nullptr) RefreshingCallback(); }
 
-    GLFW_WRAPPER_VIRTUAL void OnKeyDown(int key) const { if (KeyDownCallback != nullptr) KeyDownCallback(key); }
-    GLFW_WRAPPER_VIRTUAL void OnKeyUp(int key) const { if (KeyUpCallback != nullptr) KeyUpCallback(key); }
+    GLFW_WRAPPER_VIRTUAL void OnKeyDown(int key) const
+    {
+        if (KeyDownCallback != nullptr)
+            KeyDownCallback(key);
+
+        pressed_keys.insert(key);
+    }
+    GLFW_WRAPPER_VIRTUAL void OnKeyUp(int key) const
+    {
+        if (KeyUpCallback != nullptr)
+            KeyUpCallback(key);
+
+        pressed_keys.erase(key);
+    }
     GLFW_WRAPPER_VIRTUAL void OnKeyRepeat(int key) const { if (KeyRepeatCallback != nullptr) KeyRepeatCallback(key); }
     
     GLFW_WRAPPER_VIRTUAL void OnResize(const glm::ivec2& newSize) const 
@@ -95,7 +109,7 @@ protected:
 
         previous_mouse_pos = mousePosition;
     }
-    GLFW_WRAPPER_VIRTUAL void OnMouseDown(int button) const { if (MouseDownCallback != nullptr) MouseDownCallback(button); }
+    GLFW_WRAPPER_VIRTUAL void OnMouseDown(int button) const { if (MouseDownCallback != nullptr) MouseDownCallback(button);}
     GLFW_WRAPPER_VIRTUAL void OnMouseUp(int button) const { if (MouseUpCallback != nullptr) MouseUpCallback(button); }
     GLFW_WRAPPER_VIRTUAL void OnMouseScroll(const glm::vec2& scrollDirection) const { if (MouseScrollCallback) MouseScrollCallback(scrollDirection); }
 
@@ -121,6 +135,7 @@ private:
     //mutables is just for track some parameters in callbacks
     mutable glm::ivec2 window_size = glm::ivec2(800, 600);
     mutable glm::vec2 previous_mouse_pos;
+    mutable std::set<int> pressed_keys;
 
     double previous_render_time = 0.0;
 };

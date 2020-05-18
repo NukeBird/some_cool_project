@@ -1,5 +1,7 @@
 #define GLFW_INCLUDE_NONE
 #include <iostream>
+#include <unordered_set>
+
 
 #include "drawable.h"
 
@@ -15,51 +17,19 @@
 
 #include "model_importer.h"
 #include "texture_importer.h"
+#include "shader_importer.h"
 
 #include "glfw_window.h"
 #include "camera.h"
 
 using namespace std::literals;
 
-std::shared_ptr<IDrawable> makeFullscreenQuad()
+MeshRef makeFullscreenQuad()
 {
 	static const std::array<glm::vec2, 4> raw{ {glm::vec2(+1.f,-1.f), glm::vec2(+1.f,+1.f), glm::vec2(-1.f,-1.f), glm::vec2(-1.f,+1.f) } };
 
-	struct Quad : public IDrawable
-	{
-	    void draw(const MatrixStack& sceneTransforms) override
-	    {
-			program->use();
-			program->setUniform("source", 0);
 
-			program->setUniform("u_matProj", sceneTransforms.getProjection());
-			program->setUniform("u_matModelView", sceneTransforms.getModelView());
-			program->setUniform("u_matInverseProj", sceneTransforms.getProjectionInverse());
-			program->setUniform("u_matInverseModelView", sceneTransforms.getModelViewInverse());
-
-			vao->drawArrays(gl::GL_TRIANGLE_STRIP, 0, 4);
-			program->release();
-	    }
-
-		VertexArrayRef vao;
-		BufferRef vbo;
-
-		std::unique_ptr<globjects::Program> program;
-		std::unique_ptr<globjects::AbstractStringSource> vertex_shader_src, fragment_shader_src;
-		std::unique_ptr<globjects::Shader> vertex_shader, fragment_shader;
-	};
-
-	auto mesh = std::make_shared<Quad>();
-
-	//program
-	mesh->vertex_shader_src = globjects::Shader::sourceFromFile("data/shaders/sky.vs.glsl");
-	mesh->vertex_shader = globjects::Shader::create(gl::GLenum::GL_VERTEX_SHADER, mesh->vertex_shader_src.get());
-	mesh->fragment_shader_src = globjects::Shader::sourceFromFile("data/shaders/sky.fs.glsl");
-	mesh->fragment_shader = globjects::Shader::create(gl::GLenum::GL_FRAGMENT_SHADER, mesh->fragment_shader_src.get());
-	mesh->program = globjects::Program::create();
-	mesh->program->attach(mesh->vertex_shader.get(), mesh->fragment_shader.get());
-	
-	//auto block = mesh->program->uniformBlock("CameraBlock");
+	auto mesh = std::make_shared<Mesh>();
 
 	//vao
 	mesh->vao = globjects::VertexArray::create();
@@ -76,6 +46,84 @@ std::shared_ptr<IDrawable> makeFullscreenQuad()
 
 	return mesh;
 }
+
+struct RenderingContext
+{
+	Camera* active_camera;
+	globjects::Program* active_program;
+	MatrixStack transforms;
+
+	void applyProgram(globjects::Program* program)
+	{
+		if (active_program != program)
+		{
+			program->use();
+			active_program = program;
+		}
+	}
+
+	void applyCameraUniforms()
+	{
+		active_program->setUniform("u_matProj", transforms.getProjection());
+		active_program->setUniform("u_matModelView", transforms.getModelView());
+		active_program->setUniform("u_matInverseProj", transforms.getProjectionInverse());
+		active_program->setUniform("u_matInverseModelView", transforms.getModelViewInverse());
+		active_program->setUniform("u_matNormal", glm::transpose(glm::inverse(transforms.getModelView())));
+	}
+
+	void applyMaterial(const MaterialRef& material)
+	{
+		active_program->setUniform("u_texAlbedo", 0);
+		active_program->setUniform("u_texNormalMap", 1);
+		active_program->setUniform("u_texAoRoughnessMetallic", 2);
+
+		gl::glActiveTexture(gl::GLenum::GL_TEXTURE0);
+		material->albedo->bind();
+
+		gl::glActiveTexture(gl::GLenum::GL_TEXTURE0 + 1);
+		material->normalMap->bind();
+
+		gl::glActiveTexture(gl::GLenum::GL_TEXTURE0 + 2);
+		material->aoRoughnessMetallic->bind();
+	}
+};
+
+class Scene
+{
+public:
+	void addNode(NodeRef node, glm::mat4 modelMatrix = glm::mat4{1.0f})
+	{
+		node->transform *= modelMatrix;
+		root.insert(std::move(node));
+	}
+
+	void render(RenderingContext& rc)
+	{
+		for (const auto& node : root)
+			renderNode(node, rc);
+	}
+
+	void renderNode(const NodeRef& node, RenderingContext& rc)
+	{
+		rc.transforms.pushModelView(node->transform);
+
+		for (const auto& mesh : node->meshes)
+		{
+			rc.applyMaterial(mesh->material);
+
+			mesh->vao->bind();
+			mesh->vao->drawElements(gl::GLenum::GL_TRIANGLES, mesh->index_count, gl::GLenum::GL_UNSIGNED_INT);
+		}
+
+		for (const auto& child : node->childs)
+			renderNode(child, rc);
+
+		rc.transforms.popModelView();
+	}
+
+private:
+	std::unordered_set<NodeRef> root;
+};
 
 class App
 {
@@ -116,18 +164,19 @@ private:
     {
 		//camera.setProjection(glm::perspective())
 
-		model = ModelImporter::load("data/matball.glb");
+		scene.addNode(ModelImporter::load("data/matball.glb"));
+
+		program_skybox = ShaderImporter::load({ "data/shaders/sky.vs.glsl"s, "data/shaders/sky.fs.glsl"s });
+		program_mesh = ShaderImporter::load({ "data/shaders/mesh.vs.glsl", "data/shaders/mesh.fs.glsl" });
 
 		skybox_texture = TextureImporter::load("data/skybox.dds");
 		skybox_texture->generateMipmap();
-		camera_buffer = globjects::Buffer::create();
+
+		//camera_buffer = globjects::Buffer::create();
 
 		fullscreenQuad = makeFullscreenQuad();
 
 		camera.setView(glm::lookAt(glm::vec3{ 100.0, 10.0, 0.0 }, { 0.0, 0.0, 0.0 }, {0.0, 1.0, 0.0}));
-		auto f = camera.getForward();
-		auto l = camera.getLeft();
-		auto u = camera.getUp();
     }
 
 
@@ -141,29 +190,55 @@ private:
 
 	void OnRender(double time, double deltaTime)
     {
-		transforms.reset(camera.getView(), camera.getProjection());
+		const float moveSpeed = deltaTime * 50.0f;
+		if (window.isKeyDown(GLFW_KEY_W))
+			camera.setPosition(camera.getPosition() + camera.getForward() * moveSpeed);
+		if (window.isKeyDown(GLFW_KEY_S))
+			camera.setPosition(camera.getPosition() - camera.getForward() * moveSpeed);
+		if (window.isKeyDown(GLFW_KEY_A))
+		    camera.setPosition(camera.getPosition() + camera.getLeft() * moveSpeed);
+		if (window.isKeyDown(GLFW_KEY_D))
+		    camera.setPosition(camera.getPosition() - camera.getLeft() * moveSpeed);
+
+		rc.transforms.reset(camera.getView(), camera.getProjection());
 
         gl::glViewport(0, 0, window.getSize().x, window.getSize().y);
 
+		//render background
+		rc.applyProgram(*program_skybox);
+		rc.applyCameraUniforms();
+		program_skybox->setUniform("source", 0);
+
 		gl::glActiveTexture(gl::GLenum::GL_TEXTURE0 + 0);
 		skybox_texture->bind();
-		fullscreenQuad->draw(transforms);
+		fullscreenQuad->vao->bind();
+		fullscreenQuad->vao->drawArrays(gl::GL_TRIANGLE_STRIP, 0, 4);
+		//program->release();
 
-		assert(transforms.empty());
+
+		//render scene
+		rc.applyProgram(*program_mesh);
+		rc.applyCameraUniforms();
+		scene.render(rc);
+
+		assert(rc.transforms.empty());
     }
 
 private:
 	GlfwWindow window;
 
-	NodeRef model;
+	Scene scene;
 	TextureRef skybox_texture;
 
-	BufferRef camera_buffer;
+	//BufferRef camera_buffer;
 
-	std::shared_ptr<IDrawable> fullscreenQuad;
+
+	Program program_skybox, program_mesh;
+
+	MeshRef fullscreenQuad;
 
 	Camera camera;
-	MatrixStack transforms;
+	RenderingContext rc;
 };
 
 
@@ -173,11 +248,13 @@ int main()
 	{
 		App app;
 		app.Run();
+
+		return EXIT_SUCCESS;
 	}
 	catch (const std::exception& e)
 	{
 		spdlog::error("Exception! {0}", e.what());
-	}
 
-	return EXIT_SUCCESS;
+		return EXIT_FAILURE;
+	}
 }
