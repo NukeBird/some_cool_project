@@ -13,9 +13,9 @@ public:
     }
 
     //world-space axises
-    const glm::vec3& getLeft() const noexcept { return view_inverse[0]; }
-    const glm::vec3& getUp() const noexcept { return view_inverse[1]; }
-    const glm::vec3& getForward() const noexcept { return view_inverse[2]; }
+    const glm::vec3 getLeft() const noexcept { return -view_inverse[0]; }
+    const glm::vec3 getUp() const noexcept { return -view_inverse[1]; }
+    const glm::vec3 getForward() const noexcept { return -view_inverse[2]; }
 
     //world-space orientation
     const glm::vec3& getPosition() const noexcept { return position;  }
@@ -24,6 +24,14 @@ public:
     const glm::mat4& getView() const noexcept { return view; }
     const glm::mat4& getViewInverse() const noexcept { return view_inverse; }
     const glm::mat4& getProjection() const noexcept { return projection; }
+
+    Camera& setPosition(const glm::vec3 newPosition)
+    {
+        position = newPosition;
+        Recalculate();
+
+        return *this;
+    }
 
     Camera& setRotation(const glm::quat& newRotation)
     {
