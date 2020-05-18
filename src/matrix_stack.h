@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stack>
+#include <vector>
 #include <glm/glm.hpp>
 
 
@@ -23,7 +24,7 @@ public:
 
 
         //I hope it's right way to perform clearing :)
-        std::stack<glm::mat4> emptyMV{}, emptyProj{};
+        decltype(model_view_matrices) emptyMV{}, emptyProj{};
         model_view_matrices.swap(emptyMV);
         projection_matrices.swap(emptyProj);
 
@@ -81,5 +82,5 @@ private:
     glm::mat4 mat_model_view{ 1.0f }, mat_projection{ 1.0f };
     glm::mat4 mat_model_view_inverse{ 1.0f }, mat_projection_inverse{ 1.0f };
 
-    std::stack<glm::mat4> model_view_matrices, projection_matrices;
+    std::stack<glm::mat4, std::vector<glm::mat4>> model_view_matrices, projection_matrices;
 };
