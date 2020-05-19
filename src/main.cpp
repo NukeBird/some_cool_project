@@ -25,7 +25,7 @@
 
 using namespace std::literals;
 
-MeshRef makeFullscreenQuad()
+static MeshRef makeFullscreenQuad()
 {
 	static const std::array<glm::vec2, 4> raw{ {glm::vec2(+1.f,-1.f), glm::vec2(+1.f,+1.f), glm::vec2(-1.f,-1.f), glm::vec2(-1.f,+1.f) } };
 
@@ -65,6 +65,7 @@ struct RenderingContext
 
 	void applyCameraUniforms()
 	{
+		assert(active_program);
 		active_program->setUniform("u_matProj", transforms.getProjection());
 		active_program->setUniform("u_matModelView", transforms.getModelView());
 		active_program->setUniform("u_matInverseProj", transforms.getProjectionInverse());
@@ -72,20 +73,40 @@ struct RenderingContext
 		active_program->setUniform("u_matNormal", glm::transpose(glm::inverse(transforms.getModelView())));
 	}
 
+	//TODO: reuse textures that is already bound
+	void applyTextures(std::initializer_list<std::pair<std::string, TextureRef>> textures)
+	{
+		assert(active_program);
+
+		//TODO: request once
+        gl::GLint maxTexUnits = 0;
+		gl::glGetIntegerv(gl::GLenum::GL_MAX_TEXTURE_IMAGE_UNITS, &maxTexUnits);
+
+		if (textures.size() > maxTexUnits)
+		{
+			spdlog::warn("Trying to apply {0} textures, when hardware limit is just {1}", textures.size(), maxTexUnits);
+		    return;
+		}
+		
+		int activeTextureSlotNumber = 0;
+	    for (auto pair : textures)
+	    {
+			gl::glActiveTexture(gl::GLenum::GL_TEXTURE0 + activeTextureSlotNumber);
+			active_program->setUniform(pair.first, activeTextureSlotNumber);
+			pair.second->bind();
+
+			activeTextureSlotNumber++;
+	    }
+	}
+
 	void applyMaterial(const MaterialRef& material)
 	{
-		active_program->setUniform("u_texAlbedo", 0);
-		active_program->setUniform("u_texNormalMap", 1);
-		active_program->setUniform("u_texAoRoughnessMetallic", 2);
-
-		gl::glActiveTexture(gl::GLenum::GL_TEXTURE0);
-		material->albedo->bind();
-
-		gl::glActiveTexture(gl::GLenum::GL_TEXTURE0 + 1);
-		material->normalMap->bind();
-
-		gl::glActiveTexture(gl::GLenum::GL_TEXTURE0 + 2);
-		material->aoRoughnessMetallic->bind();
+		applyTextures(
+		{
+			{"u_texAlbedo", material->albedo},
+			{"u_texNormalMap", material->normalMap},
+			{"u_texAoRoughnessMetallic", material->aoRoughnessMetallic}
+		});
 	}
 };
 
@@ -147,7 +168,6 @@ public:
 			const auto relativePos = pos.getPos() / static_cast<glm::vec2>(window.getSize());
 
 			camera.setRotation(
-				 
 				glm::angleAxis(glm::mix(-glm::pi<float>(), glm::pi<float>(), relativePos.x), glm::vec3{ 0.0, -1.0, 0.0 }) *
 				glm::angleAxis(glm::mix(-glm::pi<float>() / 2, glm::pi<float>() / 2, relativePos.y), glm::vec3{ 1.0, 0.0, 0.0 })
 			);
@@ -208,6 +228,7 @@ private:
 
 	void OnRender(double deltaTime)
 	{
+		rc.active_camera = &camera;
 		rc.transforms.reset(camera.getView(), camera.getProjection());
 
 		gl::glViewport(0, 0, window.getSize().x, window.getSize().y);
@@ -217,22 +238,26 @@ private:
 		rc.applyProgram(*program_skybox);
 		rc.applyCameraUniforms();
 
-		program_skybox->setUniform("source", 0);
-
 		gl::glDepthMask(false);
-		gl::glActiveTexture(gl::GLenum::GL_TEXTURE0 + 0);
-		skybox_texture->bind();
-		fullscreenQuad->vao->bind();
-		fullscreenQuad->vao->drawArrays(gl::GL_TRIANGLE_STRIP, 0, 4);
-		//program->release();
-
+		rc.applyTextures({ 
+			{"source", skybox_texture}
+		});
+		renderFullscreenQuad();
 
 		//render scene
 		gl::glDepthMask(true);
 		rc.applyProgram(*program_mesh);
 		scene.render(rc);
 
+
+
 		assert(rc.transforms.empty());
+    }
+
+	void renderFullscreenQuad()
+    {
+		fullscreenQuad->vao->bind();
+		fullscreenQuad->vao->drawArrays(gl::GL_TRIANGLE_STRIP, 0, 4);
     }
 
 private:

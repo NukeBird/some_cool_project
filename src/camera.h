@@ -13,9 +13,9 @@ public:
     }
 
     //world-space axises
-    const glm::vec3 getLeft() const noexcept { return -view_inverse[0]; }
-    const glm::vec3 getUp() const noexcept { return -view_inverse[1]; }
-    const glm::vec3 getForward() const noexcept { return -view_inverse[2]; }
+    glm::vec3 getLeft() const noexcept { return -view_inverse[0]; }
+    glm::vec3 getUp() const noexcept { return -view_inverse[1]; }
+    glm::vec3 getForward() const noexcept { return -view_inverse[2]; }
 
     //world-space orientation
     const glm::vec3& getPosition() const noexcept { return position;  }

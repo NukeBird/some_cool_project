@@ -11,7 +11,7 @@ struct Mesh
 {
 	AABB box;
 	MaterialRef material;
-	uint32_t index_count;
+	uint32_t index_count = 0;
 
 	BufferRef vbo;
 	BufferRef ebo;
