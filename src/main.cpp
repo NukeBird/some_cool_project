@@ -217,6 +217,7 @@ private:
 
 		camera.setView(glm::lookAt(glm::vec3{ 100.0, 10.0, 0.0 }, { 0.0, 0.0, 0.0 }, {0.0, 1.0, 0.0}));
 
+		gl::glEnable(gl::GLenum::GL_MULTISAMPLE);
 		gl::glEnable(gl::GLenum::GL_DEPTH_TEST);
 		gl::glEnable(gl::GLenum::GL_CULL_FACE);
     }
@@ -230,12 +231,12 @@ private:
 		camera.setProjection(glm::perspectiveFov(glm::radians(90.0), static_cast<double>(newSize.x), static_cast<double>(newSize.y), 1.0, 1000.0));
 
 		//recreate framebuffer_hdr
-		framebuffer_hdr_color1 = globjects::Texture::createDefault(gl::GL_TEXTURE_2D);
-		framebuffer_hdr_color1->storage2D(1, gl::GL_RGBA16F, newSize);
-		//framebuffer_hdr_color1->storage2DMultisample(8, gl::GL_RGBA16F, newSize, true);
-		framebuffer_hdr_depth = globjects::Texture::createDefault(gl::GL_TEXTURE_2D);
-		framebuffer_hdr_depth->storage2D(1, gl::GL_DEPTH_COMPONENT32F, newSize);
-		//framebuffer_hdr_depth->storage2DMultisample(8, gl::GL_DEPTH_COMPONENT32F, newSize, true);
+		framebuffer_hdr_color1 = globjects::Texture::createDefault(gl::GL_TEXTURE_2D_MULTISAMPLE);
+		//framebuffer_hdr_color1->storage2D(1, gl::GL_RGBA16F, newSize);
+		framebuffer_hdr_color1->storage2DMultisample(8, gl::GL_RGBA16F, newSize, true);
+		framebuffer_hdr_depth = globjects::Texture::createDefault(gl::GL_TEXTURE_2D_MULTISAMPLE);
+		//framebuffer_hdr_depth->storage2D(1, gl::GL_DEPTH_COMPONENT32F, newSize);
+		framebuffer_hdr_depth->storage2DMultisample(8, gl::GL_DEPTH_COMPONENT32F, newSize, true);
 
 		framebuffer_hdr->attachTexture(gl::GLenum::GL_COLOR_ATTACHMENT0, framebuffer_hdr_color1.get());
 		framebuffer_hdr->attachTexture(gl::GLenum::GL_DEPTH_ATTACHMENT, framebuffer_hdr_depth.get());

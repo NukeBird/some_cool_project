@@ -11,8 +11,8 @@ uniform mat3 u_matNormal;
 
 uniform float u_phase;
 uniform sampler3D u_texNoise;
-uniform sampler2D u_colorMap;
-uniform sampler2D u_depthMap;
+uniform sampler2DMS u_colorMap;
+uniform sampler2DMS u_depthMap;
 
 uniform float u_tmGamma = 2.2;
 uniform float u_tmExposure = 0.5;
@@ -33,9 +33,22 @@ vec3 getFragPos(in float z)
     return pos.xyz/pos.w;
 }
 
+vec4 textureMultisample(sampler2DMS sampler, ivec2 coord)
+{
+	int texSamples = 8;
+    vec4 color = vec4(0.0, 0.0, 0.0, 0.0);
+
+    for (int i = 0; i < texSamples; i++)
+        color += texelFetch(sampler, coord, i);
+
+    color /= float(texSamples);
+
+    return color;
+}
+
 void main()
 {
-	vec4 color = texture(u_colorMap, v_texCoord);
+	vec4 color = textureMultisample(u_colorMap, ivec2(gl_FragCoord.xy));
 	FragColor = toneMapping(color);
 
 /*
