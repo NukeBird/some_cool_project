@@ -29,7 +29,6 @@ MeshRef makeFullscreenQuad()
 {
 	static const std::array<glm::vec2, 4> raw{ {glm::vec2(+1.f,-1.f), glm::vec2(+1.f,+1.f), glm::vec2(-1.f,-1.f), glm::vec2(-1.f,+1.f) } };
 
-
 	auto mesh = std::make_shared<Mesh>();
 
 	//vao
@@ -50,8 +49,9 @@ MeshRef makeFullscreenQuad()
 
 struct RenderingContext
 {
-	Camera* active_camera;
-	globjects::Program* active_program;
+	Camera* active_camera = nullptr;
+	globjects::Program* active_program = nullptr;
+
 	MatrixStack transforms;
 
 	void applyProgram(globjects::Program* program)
@@ -134,13 +134,13 @@ public:
 	{
 		window.
 			setLabel("Oh hi Mark"s).
-			setSize(800, 600).
+			setSize(1024, 768).
 			setNumMsaaSamples(8);
 
 		//setup callbacks
 		window.InitializeCallback = [this] { OnInitialize(); };
 		window.ResizeCallback = [this](const glm::ivec2& newSize) { OnResize(newSize); };
-		window.RenderCallback = [this](double time, double dt) { OnRender(time, dt); };
+		window.RenderCallback = [this](double dt) { OnRender(dt); };
 
 		window.MouseMoveCallback = [&](const MousePos& pos)
 		{
@@ -151,6 +151,19 @@ public:
 				glm::angleAxis(glm::mix(-glm::pi<float>(), glm::pi<float>(), relativePos.x), glm::vec3{ 0.0, -1.0, 0.0 }) *
 				glm::angleAxis(glm::mix(-glm::pi<float>() / 2, glm::pi<float>() / 2, relativePos.y), glm::vec3{ 1.0, 0.0, 0.0 })
 			);
+		};
+
+		window.UpdateCallback = [&](double dt)
+		{
+			const float moveSpeed = dt * 50.0f;
+			if (window.isKeyDown(GLFW_KEY_W))
+				camera.setPosition(camera.getPosition() + camera.getForward() * moveSpeed);
+			if (window.isKeyDown(GLFW_KEY_S))
+				camera.setPosition(camera.getPosition() - camera.getForward() * moveSpeed);
+			if (window.isKeyDown(GLFW_KEY_A))
+				camera.setPosition(camera.getPosition() + camera.getLeft() * moveSpeed);
+			if (window.isKeyDown(GLFW_KEY_D))
+				camera.setPosition(camera.getPosition() - camera.getLeft() * moveSpeed);
 		};
 
 		window.MouseDownCallback = [this](int key)
@@ -193,19 +206,8 @@ private:
 		camera.setProjection(glm::perspectiveFov(glm::radians(90.0), static_cast<double>(newSize.x), static_cast<double>(newSize.y), 1.0, 1000.0));
     }
 
-	void OnRender(double time, double deltaTime)
+	void OnRender(double deltaTime)
 	{
-		const float moveSpeed = deltaTime * 50.0f;
-		if (window.isKeyDown(GLFW_KEY_W))
-			camera.setPosition(camera.getPosition() + camera.getForward() * moveSpeed);
-		if (window.isKeyDown(GLFW_KEY_S))
-			camera.setPosition(camera.getPosition() - camera.getForward() * moveSpeed);
-		if (window.isKeyDown(GLFW_KEY_A))
-			camera.setPosition(camera.getPosition() + camera.getLeft() * moveSpeed);
-		if (window.isKeyDown(GLFW_KEY_D))
-			camera.setPosition(camera.getPosition() - camera.getLeft() * moveSpeed);
-
-
 		rc.transforms.reset(camera.getView(), camera.getProjection());
 
 		gl::glViewport(0, 0, window.getSize().x, window.getSize().y);
@@ -228,7 +230,6 @@ private:
 		//render scene
 		gl::glDepthMask(true);
 		rc.applyProgram(*program_mesh);
-		rc.applyCameraUniforms();
 		scene.render(rc);
 
 		assert(rc.transforms.empty());
@@ -239,13 +240,16 @@ private:
 
 	Scene scene;
 	TextureRef skybox_texture;
+	MeshRef fullscreenQuad;
+
+	Program program_skybox, program_mesh;
 
 	//BufferRef camera_buffer;
 
 
-	Program program_skybox, program_mesh;
+	
 
-	MeshRef fullscreenQuad;
+	
 
 	Camera camera;
 	RenderingContext rc;

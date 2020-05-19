@@ -32,8 +32,6 @@ private:
     glm::vec2 position, previous_position;
 };
 
-#define GLFW_WRAPPER_VIRTUAL virtual
-
 class GlfwWindow
 {
 public:
@@ -57,7 +55,8 @@ public:
 
     //event callbacks
     std::function<void(void)> InitializeCallback;
-    std::function<void(double, double)> RenderCallback;
+    std::function<void(double)> UpdateCallback;
+    std::function<void(double)> RenderCallback;
     std::function<void(void)> RefreshingCallback;
 
     std::function<void(int)> KeyDownCallback;
@@ -72,35 +71,37 @@ public:
     std::function<void(glm::vec2)> MouseScrollCallback;
 
 protected:
-    GLFW_WRAPPER_VIRTUAL void OnInitialize() const { if (InitializeCallback != nullptr) InitializeCallback(); }
-    GLFW_WRAPPER_VIRTUAL void OnRender(double time, double deltaTime) const { if (RenderCallback != nullptr) RenderCallback(time, deltaTime); }
-    GLFW_WRAPPER_VIRTUAL void OnWindowRefreshing() const { if (RefreshingCallback != nullptr) RefreshingCallback(); }
+    void OnInitialize() const { if (InitializeCallback) InitializeCallback(); }
+    void OnUpdate(double deltaTime) const { if (UpdateCallback) UpdateCallback(deltaTime); }
+    void OnRender(double deltaTime) const { if (RenderCallback) RenderCallback (deltaTime); }
+    void OnWindowRefreshing() const { if (RefreshingCallback) RefreshingCallback(); }
 
-    GLFW_WRAPPER_VIRTUAL void OnKeyDown(int key) const
+    void OnKeyDown(int key) const
     {
-        if (KeyDownCallback != nullptr)
+        if (KeyDownCallback)
             KeyDownCallback(key);
 
         pressed_keys.insert(key);
     }
-    GLFW_WRAPPER_VIRTUAL void OnKeyUp(int key) const
+
+    void OnKeyUp(int key) const
     {
-        if (KeyUpCallback != nullptr)
+        if (KeyUpCallback)
             KeyUpCallback(key);
 
         pressed_keys.erase(key);
     }
-    GLFW_WRAPPER_VIRTUAL void OnKeyRepeat(int key) const { if (KeyRepeatCallback != nullptr) KeyRepeatCallback(key); }
+    void OnKeyRepeat(int key) const { if (KeyRepeatCallback) KeyRepeatCallback(key); }
     
-    GLFW_WRAPPER_VIRTUAL void OnResize(const glm::ivec2& newSize) const 
+    void OnResize(const glm::ivec2& newSize) const 
     { 
-        if (ResizeCallback != nullptr) ResizeCallback(newSize); 
+        if (ResizeCallback) ResizeCallback(newSize); 
 
         window_size = newSize;
     }
-    GLFW_WRAPPER_VIRTUAL void OnClosing() const { if (ClosingCallback != nullptr) ClosingCallback(); }
+    void OnClosing() const { if (ClosingCallback) ClosingCallback(); }
     
-    GLFW_WRAPPER_VIRTUAL void OnMouseMove(glm::vec2& mousePosition) const 
+    void OnMouseMove(glm::vec2& mousePosition) const 
     {
         mousePosition.y = window_size.y - mousePosition.y; //WTF?
 
@@ -109,18 +110,18 @@ protected:
 
         previous_mouse_pos = mousePosition;
     }
-    GLFW_WRAPPER_VIRTUAL void OnMouseDown(int button) const { if (MouseDownCallback != nullptr) MouseDownCallback(button);}
-    GLFW_WRAPPER_VIRTUAL void OnMouseUp(int button) const { if (MouseUpCallback != nullptr) MouseUpCallback(button); }
-    GLFW_WRAPPER_VIRTUAL void OnMouseScroll(const glm::vec2& scrollDirection) const { if (MouseScrollCallback) MouseScrollCallback(scrollDirection); }
-
-    void Render();
-
-    static GlfwWindow* FromNativeWindow(const GLFWwindow* window);
-    static void TryUpdateGlBindings();
+    void OnMouseDown(int button) const { if (MouseDownCallback) MouseDownCallback(button);}
+    void OnMouseUp(int button) const { if (MouseUpCallback) MouseUpCallback(button); }
+    void OnMouseScroll(const glm::vec2& scrollDirection) const { if (MouseScrollCallback) MouseScrollCallback(scrollDirection); }
 
 private:
     void SetupCallbacks();
     void MakeContextCurrent();
+
+    void UpdateAndRender();
+
+    static GlfwWindow* FromNativeWindow(const GLFWwindow* window);
+    static void TryUpdateGlBindings();
 
 private:
     const int OpenGL_Context_Version_Major = 4;

@@ -85,18 +85,19 @@ void GlfwWindow::Run()
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window_impl))
     {
-        Render();
+        UpdateAndRender();
         glfwPollEvents();
     }
 }
 
-void GlfwWindow::Render()
+void GlfwWindow::UpdateAndRender()
 {
     MakeContextCurrent();
 
     {
         double currentTime = glfwGetTime();
-        OnRender(currentTime, currentTime - previous_render_time);
+        OnUpdate(currentTime - previous_render_time);
+        OnRender(currentTime - previous_render_time);
         previous_render_time = currentTime;
     }
 
@@ -196,7 +197,7 @@ void GlfwWindow::SetupCallbacks()
     glfwSetWindowRefreshCallback(window_impl, [](GLFWwindow *window) {
         auto wnd = FromNativeWindow(window);
         wnd->OnWindowRefreshing();
-        wnd->Render();
+        //wnd->UpdateAndRender();
     });
 
     glfwSetScrollCallback(window_impl, [](GLFWwindow* window, double xoffset, double yoffset) {
