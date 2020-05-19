@@ -184,6 +184,12 @@ public:
 				camera.setPosition(camera.getPosition() + camera.getLeft() * moveSpeed);
 			if (window.isKeyDown(GLFW_KEY_D))
 				camera.setPosition(camera.getPosition() - camera.getLeft() * moveSpeed);
+
+			if (window.isKeyDown(GLFW_KEY_EQUAL))
+				exposition += 1.0f * dt;
+			if (window.isKeyDown(GLFW_KEY_MINUS))
+				exposition -= 1.0f * dt;
+			exposition = glm::clamp(exposition, 0.01f, 10.0f);
 		};
 
 		window.MouseDownCallback = [this](int key)
@@ -283,6 +289,7 @@ private:
 
 		rc.applyProgram(*program_postprocess);
 		//rc.applyCameraUniforms();
+		rc.active_program->setUniform("u_tmExposure", exposition);
 		rc.applyTextures({ 
 			{"u_colorMap", framebuffer_hdr_color1},
 		    {"u_depthMap", framebuffer_hdr_depth}
@@ -310,6 +317,7 @@ private:
 	//BufferRef camera_buffer;
 
 
+	float exposition = 0.5f;
 	std::shared_ptr<globjects::Texture> framebuffer_hdr_color1;
 	std::shared_ptr<globjects::Texture> framebuffer_hdr_depth;
 	std::unique_ptr<globjects::Framebuffer> framebuffer_hdr;
