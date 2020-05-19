@@ -203,6 +203,7 @@ private:
 
 		program_skybox = ShaderImporter::load({ "data/shaders/sky.vs.glsl"s, "data/shaders/sky.fs.glsl"s });
 		program_mesh = ShaderImporter::load({ "data/shaders/mesh.vs.glsl", "data/shaders/mesh.fs.glsl" });
+		program_postprocess = ShaderImporter::load({"data/shaders/postprocess.vs.glsl", "data/shaders/postprocess.fs.glsl"});
 
 		skybox_texture = TextureImporter::load("data/skybox.dds");
 		skybox_texture->generateMipmap();
@@ -210,6 +211,9 @@ private:
 		//camera_buffer = globjects::Buffer::create();
 
 		fullscreenQuad = makeFullscreenQuad();
+
+		framebuffer_hdr = globjects::Framebuffer::create();
+		framebuffer_hdr->clearBuffer(gl::GLenum::GL_COLOR, 0, glm::vec4(1.0f, 1.0f, 1.0f, 0.0f));
 
 		camera.setView(glm::lookAt(glm::vec3{ 100.0, 10.0, 0.0 }, { 0.0, 0.0, 0.0 }, {0.0, 1.0, 0.0}));
 
@@ -224,6 +228,19 @@ private:
 			return;
 
 		camera.setProjection(glm::perspectiveFov(glm::radians(90.0), static_cast<double>(newSize.x), static_cast<double>(newSize.y), 1.0, 1000.0));
+
+		//recreate framebuffer_hdr
+		framebuffer_hdr_color1 = globjects::Texture::createDefault(gl::GL_TEXTURE_2D);
+		framebuffer_hdr_color1->storage2D(1, gl::GL_RGBA16F, newSize);
+		//framebuffer_hdr_color1->storage2DMultisample(8, gl::GL_RGBA16F, newSize, true);
+		framebuffer_hdr_depth = globjects::Texture::createDefault(gl::GL_TEXTURE_2D);
+		framebuffer_hdr_depth->storage2D(1, gl::GL_DEPTH_COMPONENT32F, newSize);
+		//framebuffer_hdr_depth->storage2DMultisample(8, gl::GL_DEPTH_COMPONENT32F, newSize, true);
+
+		framebuffer_hdr->attachTexture(gl::GLenum::GL_COLOR_ATTACHMENT0, framebuffer_hdr_color1.get());
+		framebuffer_hdr->attachTexture(gl::GLenum::GL_DEPTH_ATTACHMENT, framebuffer_hdr_depth.get());
+		framebuffer_hdr->setDrawBuffers({ gl::GLenum::GL_COLOR_ATTACHMENT0, gl::GL_DEPTH_ATTACHMENT });
+		framebuffer_hdr->printStatus();
     }
 
 	void OnRender(double deltaTime)
@@ -231,8 +248,15 @@ private:
 		rc.active_camera = &camera;
 		rc.transforms.reset(camera.getView(), camera.getProjection());
 
+		gl::glDepthMask(true);
+
 		gl::glViewport(0, 0, window.getSize().x, window.getSize().y);
-		gl::glClear(gl::ClearBufferMask::GL_COLOR_BUFFER_BIT | gl::ClearBufferMask::GL_DEPTH_BUFFER_BIT);
+		//gl::glClear(gl::ClearBufferMask::GL_COLOR_BUFFER_BIT | gl::ClearBufferMask::GL_DEPTH_BUFFER_BIT);
+
+		framebuffer_hdr->bind();
+		framebuffer_hdr->clear(gl::ClearBufferMask::GL_COLOR_BUFFER_BIT | gl::ClearBufferMask::GL_DEPTH_BUFFER_BIT);
+		//framebuffer_hdr->clearDepth(1.0f);
+		
 
 		//render background
 		rc.applyProgram(*program_skybox);
@@ -249,7 +273,20 @@ private:
 		rc.applyProgram(*program_mesh);
 		scene.render(rc);
 
+		framebuffer_hdr->unbind();
 
+		
+		//render postprocess
+		gl::glClear(gl::ClearBufferMask::GL_COLOR_BUFFER_BIT | gl::ClearBufferMask::GL_DEPTH_BUFFER_BIT);
+		//gl::glDepthMask(false);
+
+		rc.applyProgram(*program_postprocess);
+		//rc.applyCameraUniforms();
+		rc.applyTextures({ 
+			{"u_colorMap", framebuffer_hdr_color1},
+		    {"u_depthMap", framebuffer_hdr_depth}
+		});
+		renderFullscreenQuad();
 
 		assert(rc.transforms.empty());
     }
@@ -267,10 +304,14 @@ private:
 	TextureRef skybox_texture;
 	MeshRef fullscreenQuad;
 
-	Program program_skybox, program_mesh;
+	Program program_skybox, program_mesh, program_postprocess;
 
 	//BufferRef camera_buffer;
 
+
+	std::shared_ptr<globjects::Texture> framebuffer_hdr_color1;
+	std::shared_ptr<globjects::Texture> framebuffer_hdr_depth;
+	std::unique_ptr<globjects::Framebuffer> framebuffer_hdr;
 
 	
 

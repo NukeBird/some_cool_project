@@ -16,11 +16,11 @@ uniform mat3 u_matNormal;
 uniform samplerCube source;
 
 layout (location = 0) out vec4 fragColor;
-in vec2 v_uv;
+in vec2 v_texCoord;
 
 vec3 getEyeDir()
 {
-    vec4 device_normal = vec4(v_uv*2.0-1.0, 0.0, 1.0);
+    vec4 device_normal = vec4(v_texCoord*2.0-1.0, 0.0, 1.0);
     vec3 eye_normal = normalize((u_matInverseProj * device_normal).xyz);
     vec3 world_normal = normalize(mat3(u_matInverseModelView) * eye_normal);
     
@@ -30,6 +30,4 @@ vec3 getEyeDir()
 void main()
 {
     fragColor = texture(source, getEyeDir()) * 5.0f;
-
-    fragColor = fragColor/(fragColor + 1.0);
 }
