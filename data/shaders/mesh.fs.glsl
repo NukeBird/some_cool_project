@@ -54,7 +54,16 @@ void main()
     vec4 albedo = texture(u_texAlbedo, texCoord);
     albedo.rgb = to_linear(albedo.rgb);
 
-	FragColor.rgba = albedo;
+    vec4 aorm_sample = texture(u_texAoRoughnessMetallic, texCoord);
+
+    float ao = aorm_sample.r;
+    float roughness = aorm_sample.g;
+    float metallic = aorm_sample.b;
+
+    vec4 final_color = albedo;
+    final_color.rgb *= ao;
+
+	FragColor.rgba = final_color;
 
 	vec3 normal = u_matNormal * interpolated.normal;
 	//FragNormal = vec4(normal, 1.0);
