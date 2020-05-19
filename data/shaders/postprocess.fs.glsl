@@ -19,7 +19,7 @@ uniform float u_tmExposure = 0.5;
 
 layout (location = 0) out vec4 FragColor;
 
-vec4 toneMapping (vec4 color)
+vec4 toneMapping(vec4 color)
 {
 	vec3 mapped_color = vec3(1.0) - exp(-color.rgb * u_tmExposure);
 	mapped_color = pow(mapped_color, vec3(1.0/u_tmGamma));

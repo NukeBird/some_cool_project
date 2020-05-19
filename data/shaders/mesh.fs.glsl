@@ -38,13 +38,23 @@ mat3 cotangent_frame(in vec3 normal, in vec3 pos, in vec2 uv)
     return mat3( T * invmax, B * invmax, normal );
 }
 
+//SRGB -> RGB
+vec3 to_linear(in vec3 color)
+{
+    const float gamma = 2.2f;
+    return pow(color, vec3(gamma));
+}
+
 void main()
 {
 	//vec3 normalFromMap = (texture(u_texNormalMap, interpolated.texCoord).rbg * 2.0 - 1.0)*vec3(1.0, 1.0, -1.0);
 
 	vec2 texCoord = interpolated.texCoord;
 
-	FragColor.rgba = texture (u_texAlbedo, texCoord);
+    vec4 albedo = texture(u_texAlbedo, texCoord);
+    albedo.rgb = to_linear(albedo.rgb);
+
+	FragColor.rgba = albedo;
 
 	vec3 normal = u_matNormal * interpolated.normal;
 	//FragNormal = vec4(normal, 1.0);
