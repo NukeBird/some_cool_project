@@ -32,6 +32,13 @@ private:
     glm::vec2 position, previous_position;
 };
 
+enum class GlfwCursorMode
+{
+    Normal = GLFW_CURSOR_NORMAL,
+    Hidden = GLFW_CURSOR_HIDDEN,
+    Disabled = GLFW_CURSOR_DISABLED
+};
+
 class GlfwWindow
 {
 public:
@@ -40,7 +47,16 @@ public:
 
     void Run();
 
-    bool isKeyDown(int key_code) const { return pressed_keys.find(key_code) != std::end(pressed_keys); }
+    bool isKeyDown(int keyCode) const { return window_impl && (glfwGetKey(window_impl, keyCode) == GLFW_PRESS); }
+    bool isMouseKeyDown(int button) const { return window_impl && (glfwGetMouseButton(window_impl, button) == GLFW_PRESS); }
+
+    GlfwWindow& setCursorMode(GlfwCursorMode cursorMode)
+    {
+        if (window_impl)
+            glfwSetInputMode(window_impl, GLFW_CURSOR, static_cast<int>(cursorMode));
+
+        return *this;
+    }
 
     //TODO: probably all this functions should be made thread-safe or made available only from callbacks(for example moved to some helper class)
     GlfwWindow& setLabel(const std::string& label);
@@ -80,16 +96,12 @@ protected:
     {
         if (KeyDownCallback)
             KeyDownCallback(key);
-
-        pressed_keys.insert(key);
     }
 
     void OnKeyUp(int key) const
     {
         if (KeyUpCallback)
             KeyUpCallback(key);
-
-        pressed_keys.erase(key);
     }
     void OnKeyRepeat(int key) const { if (KeyRepeatCallback) KeyRepeatCallback(key); }
     
@@ -136,7 +148,6 @@ private:
     //mutables is just for track some parameters in callbacks
     mutable glm::ivec2 window_size = glm::ivec2(800, 600);
     mutable glm::vec2 previous_mouse_pos;
-    mutable std::set<int> pressed_keys;
 
     double previous_render_time = 0.0;
 };
