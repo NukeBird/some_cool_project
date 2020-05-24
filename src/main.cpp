@@ -159,7 +159,9 @@ public:
 
 		window->
 	        setLabel("Oh hi Mark"s).
-			setSize(1024, 768);
+			setSize(1024, 768).
+		    setCursorMode(GlfwCursorMode::Hidden)
+	    ;
 
 		//setup callbacks
 		window->InitializeCallback = [this] { OnInitialize(); };
@@ -211,7 +213,10 @@ public:
 private:
     void OnInitialize()
     {
-		//camera.setProjection(glm::perspective())
+		globjects::init([](const char* name)
+			{
+				return glfwGetProcAddress(name);
+			});
 
 		scene.addNode(ModelImporter::load("data/matball.glb"), glm::scale(glm::mat4{1.0f}, {10, 10, 10}));
 
@@ -262,8 +267,13 @@ private:
 			framebuffer_hdr->attachTexture(gl::GLenum::GL_COLOR_ATTACHMENT0, framebuffer_hdr_color1.get());
 			framebuffer_hdr->attachTexture(gl::GLenum::GL_DEPTH_ATTACHMENT, framebuffer_hdr_depth.get());
 			framebuffer_hdr->setDrawBuffers({ gl::GLenum::GL_COLOR_ATTACHMENT0, gl::GL_DEPTH_ATTACHMENT });
-			framebuffer_hdr->printStatus();
+			
+			if (framebuffer_hdr->checkStatus() != gl::GLenum::GL_FRAMEBUFFER_COMPLETE)
+			{
+				spdlog::error("Framebuffer is not complete: {0}", framebuffer_hdr->statusString());
+			}
 
+			
 			dirty_framebuffers = false;
 		}
 

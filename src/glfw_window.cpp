@@ -12,14 +12,6 @@ GlfwWindow* GlfwWindow::FromNativeWindow(const GLFWwindow* window)
     return frontendPtr;
 }
 
-void GlfwWindow::TryUpdateGlBindings()
-{
-    globjects::init([](const char* name) 
-    {
-        return glfwGetProcAddress(name);
-    });
-}
-
 GlfwWindow::GlfwWindow(GlfwContextParameters contextParams) :
     context_parameters(contextParams)
 {
@@ -214,9 +206,6 @@ void GlfwWindow::MakeContextCurrent()
     if (actualContext != window_impl)
     {
         glfwMakeContextCurrent(window_impl);
-
-        //in common case gl functions must be updated after context switching, but fortunately in case "one context per one thread" it don't occured
-        TryUpdateGlBindings();
 
         if (swap_interval_need_update)
         {

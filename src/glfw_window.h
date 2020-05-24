@@ -150,8 +150,6 @@ private:
     void UpdateAndRender();
 
     static GlfwWindow* FromNativeWindow(const GLFWwindow* window);
-    static void TryUpdateGlBindings();
-
 
 private:
     const GlfwContextParameters context_parameters;
