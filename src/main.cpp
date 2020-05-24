@@ -1,4 +1,3 @@
-#define GLFW_INCLUDE_NONE
 #include <iostream>
 #include <unordered_set>
 
@@ -20,7 +19,7 @@
 #include "texture_importer.h"
 #include "shader_importer.h"
 
-#include "glfw_window.h"
+#include "glfw_application.h"
 #include "camera.h"
 
 using namespace std::literals;
@@ -153,19 +152,23 @@ class App
 public:
 	void Run()
 	{
-		window.
-			setLabel("Oh hi Mark"s).
-			setSize(1024, 768).
-			setNumMsaaSamples(8);
+		GlfwApplication::get().OnNoActiveWindows = [] { GlfwApplication::get().stop(); };
+
+
+		window = GlfwApplication::get().createWindow();
+
+		window->
+	        setLabel("Oh hi Mark"s).
+			setSize(1024, 768);
 
 		//setup callbacks
-		window.InitializeCallback = [this] { OnInitialize(); };
-		window.ResizeCallback = [this](const glm::ivec2& newSize) { OnResize(newSize); };
-		window.RenderCallback = [this](double dt) { OnRender(dt); };
+		window->InitializeCallback = [this] { OnInitialize(); };
+		window->ResizeCallback = [this](const glm::ivec2& newSize) { OnResize(newSize); };
+		window->RenderCallback = [this](double dt) { OnRender(dt); };
 
-		window.MouseMoveCallback = [&](const MousePos& pos)
+		window->MouseMoveCallback = [&](const MousePos& pos)
 		{
-			const auto relativePos = pos.getPos() / static_cast<glm::vec2>(window.getSize());
+			const auto relativePos = pos.getPos() / static_cast<glm::vec2>(window->getSize());
 
 			camera.setRotation(
 				glm::angleAxis(glm::mix(-glm::pi<float>(), glm::pi<float>(), relativePos.x), glm::vec3{ 0.0, -1.0, 0.0 }) *
@@ -173,31 +176,36 @@ public:
 			);
 		};
 
-		window.UpdateCallback = [&](double dt)
+		window->UpdateCallback = [&](double dt)
 		{
 			const float moveSpeed = dt * 50.0f;
-			if (window.isKeyDown(GLFW_KEY_W))
+			if (window->isKeyDown(GLFW_KEY_W))
 				camera.setPosition(camera.getPosition() + camera.getForward() * moveSpeed);
-			if (window.isKeyDown(GLFW_KEY_S))
+			if (window->isKeyDown(GLFW_KEY_S))
 				camera.setPosition(camera.getPosition() - camera.getForward() * moveSpeed);
-			if (window.isKeyDown(GLFW_KEY_A))
+			if (window->isKeyDown(GLFW_KEY_A))
 				camera.setPosition(camera.getPosition() + camera.getLeft() * moveSpeed);
-			if (window.isKeyDown(GLFW_KEY_D))
+			if (window->isKeyDown(GLFW_KEY_D))
 				camera.setPosition(camera.getPosition() - camera.getLeft() * moveSpeed);
 
-			if (window.isKeyDown(GLFW_KEY_EQUAL))
-				exposition += 1.0f * dt;
-			if (window.isKeyDown(GLFW_KEY_MINUS))
-				exposition -= 1.0f * dt;
+			const float expositionSpeed = dt;
+			if (window->isKeyDown(GLFW_KEY_EQUAL))
+				exposition += expositionSpeed;
+			if (window->isKeyDown(GLFW_KEY_MINUS))
+				exposition -= expositionSpeed;
+
+			if (window->isKeyDown(GLFW_KEY_ESCAPE))
+				window->setCloseFlag(true);
+
 			exposition = glm::clamp(exposition, 0.01f, 10.0f);
 		};
 
-		window.MouseDownCallback = [this](int key)
+		window->MouseDownCallback = [this](int key)
 		{
+			
 		};
 
-
-		window.Run();
+		GlfwApplication::get().run();
 	}
 
 private:
@@ -234,7 +242,7 @@ private:
 		if (newSize == glm::ivec2{ 0, 0 })
 			return;
 
-		camera.setProjection(glm::perspectiveFov(glm::radians(90.0), static_cast<double>(newSize.x), static_cast<double>(newSize.y), 1.0, 1000.0));
+		camera.setProjection(glm::perspectiveFov(glm::radians(70.0), static_cast<double>(newSize.x), static_cast<double>(newSize.y), 1.0, 1000.0));
 
 		//recreate framebuffer_hdr
 		framebuffer_hdr_color1 = globjects::Texture::createDefault(gl::GL_TEXTURE_2D_MULTISAMPLE);
@@ -257,7 +265,7 @@ private:
 
 		gl::glDepthMask(true);
 
-		gl::glViewport(0, 0, window.getSize().x, window.getSize().y);
+		gl::glViewport(0, 0, window->getSize().x, window->getSize().y);
 		//gl::glClear(gl::ClearBufferMask::GL_COLOR_BUFFER_BIT | gl::ClearBufferMask::GL_DEPTH_BUFFER_BIT);
 
 		framebuffer_hdr->bind();
@@ -306,7 +314,7 @@ private:
     }
 
 private:
-	GlfwWindow window;
+	std::shared_ptr<GlfwWindow> window;
 
 	Scene scene;
 	TextureRef skybox_texture;

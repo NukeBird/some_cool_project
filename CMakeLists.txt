@@ -15,5 +15,7 @@ target_link_libraries(some_cool_project glm assimp::assimp globjects::globjects
 	glfw spdlog::spdlog spdlog::spdlog_header_only soil2)
 target_compile_definitions(some_cool_project PRIVATE GLFW_INCLUDE_NONE)
 
+add_definitions(-DGLFW_INCLUDE_NONE)
+
 set_property(TARGET some_cool_project PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 set_property(TARGET some_cool_project PROPERTY CXX_STANDARD 17)

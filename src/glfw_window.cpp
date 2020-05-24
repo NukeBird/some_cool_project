@@ -2,45 +2,14 @@
 #include <mutex>
 #include <cassert>
 
-namespace
-{
-    class GlfwKeeper
-    {
-    public:
-        std::mutex mutex;
+#include "glfw_application.h"
 
-        static GlfwKeeper& Get()
-        {
-            static GlfwKeeper keeper;
-            return keeper;
-        }
-
-        GlfwKeeper(const GlfwKeeper&) = delete;
-        GlfwKeeper(GlfwKeeper&&) = delete;
-        GlfwKeeper& operator=(const GlfwKeeper&) = delete;
-        GlfwKeeper& operator=(GlfwKeeper&&) = delete;
-
-    private:
-        GlfwKeeper()
-        {
-            if (!glfwInit())
-                throw GlfwException("Initialization failed");
-
-            glfwSetErrorCallback([](int, const char* message) {
-                throw GlfwException(message);
-                });
-        }
-
-        ~GlfwKeeper()
-        {
-            glfwTerminate();
-        }
-    };
-}
 
 GlfwWindow* GlfwWindow::FromNativeWindow(const GLFWwindow* window)
 {
-    return static_cast<GlfwWindow*>(glfwGetWindowUserPointer(const_cast<GLFWwindow*>(window)));
+    const auto frontendPtr = static_cast<GlfwWindow*>(glfwGetWindowUserPointer(const_cast<GLFWwindow*>(window)));
+    assert(frontendPtr);
+    return frontendPtr;
 }
 
 void GlfwWindow::TryUpdateGlBindings()
@@ -51,51 +20,58 @@ void GlfwWindow::TryUpdateGlBindings()
     });
 }
 
-GlfwWindow::~GlfwWindow()
+GlfwWindow::GlfwWindow(GlfwContextParameters contextParams) :
+    context_parameters(contextParams)
 {
-    std::lock_guard lock(GlfwKeeper::Get().mutex);
+    //std::lock_guard lock(GlfwApplication::Get().mutex);
 
-    glfwDestroyWindow(window_impl);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, context_parameters.context_major_version);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, context_parameters.context_minor_version);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, static_cast<int>(context_parameters.profile));
+    glfwWindowHint(GLFW_SAMPLES, context_parameters.msaa_samples);
+
+    /* Create a windowed mode window and its OpenGL context */
+    window_impl = glfwCreateWindow(window_size.x, window_size.y, window_label.c_str(), nullptr, nullptr);
+    if (!window_impl)
+        throw GlfwException("Windows creation failed");
+
+    glfwSetWindowUserPointer(window_impl, this);
+
+    SetupCallbacks();
 }
 
-void GlfwWindow::Run()
+bool GlfwWindow::isKeyDown(int keyCode) const
 {
-    {
-        std::lock_guard lock(GlfwKeeper::Get().mutex);
+    return window_impl && (glfwGetKey(window_impl, keyCode) == GLFW_PRESS);
+}
 
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, OpenGL_Context_Version_Major);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, OpenGL_Context_Version_Minor);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-        glfwWindowHint(GLFW_SAMPLES, num_msaa_samples);
+bool GlfwWindow::isMouseKeyDown(int button) const
+{
+    return window_impl && (glfwGetMouseButton(window_impl, button) == GLFW_PRESS);
+}
 
-        /* Create a windowed mode window and its OpenGL context */
-        window_impl = glfwCreateWindow(window_size.x, window_size.y, window_label.c_str(), nullptr, nullptr);
-        if (!window_impl)
-            throw GlfwException("Windows creation failed");
+GlfwWindow& GlfwWindow::setCursorMode(GlfwCursorMode cursorMode)
+{
+    if (window_impl)
+        glfwSetInputMode(window_impl, GLFW_CURSOR, static_cast<int>(cursorMode));
 
-        glfwSetWindowUserPointer(window_impl, this);
-
-        SetupCallbacks();
-    }
-
-    MakeContextCurrent();
-    OnInitialize();
-    OnResize(getSize());
-
-    /* Loop until the user closes the window */
-    while (!glfwWindowShouldClose(window_impl))
-    {
-        UpdateAndRender();
-        glfwPollEvents();
-    }
+    return *this;
 }
 
 void GlfwWindow::UpdateAndRender()
 {
+    assert(window_impl);
     MakeContextCurrent();
 
     {
-        double currentTime = glfwGetTime();
+        if (!isInitialized)
+        {
+            isInitialized = true;
+            OnInitialize();
+            OnResize(getSize());
+        }
+
+        const double currentTime = glfwGetTime();
         OnUpdate(currentTime - previous_render_time);
         OnRender(currentTime - previous_render_time);
         previous_render_time = currentTime;
@@ -134,14 +110,18 @@ GlfwWindow& GlfwWindow::setCloseFlag(bool flag)
     return *this;
 }
 
-GlfwWindow& GlfwWindow::setNumMsaaSamples(int samples)
+bool GlfwWindow::getCloseFlag() const
 {
-    if (!window_impl)
-        num_msaa_samples = samples;
-    else
-        throw GlfwException("MSAA could be only setted before Run() call");
+    if (window_impl)
+        return glfwWindowShouldClose(window_impl);
 
-    return *this;
+    return false;
+}
+
+void GlfwWindow::requestAttention()
+{
+    if (window_impl)
+        glfwRequestWindowAttention(window_impl);
 }
 
 GlfwWindow& GlfwWindow::setSize(int width, int height)
@@ -183,11 +163,11 @@ void GlfwWindow::SetupCallbacks()
     });
 
     glfwSetCursorPosCallback(window_impl, [](GLFWwindow* window, double x, double y) {
-        FromNativeWindow(window)->OnMouseMove(glm::vec2(x, y));
+        FromNativeWindow(window)->OnMouseMove({ x, y });
     });
     
     glfwSetFramebufferSizeCallback(window_impl, [](GLFWwindow *window, int w, int h) {
-        FromNativeWindow(window)->OnResize(glm::ivec2(w, h));
+        FromNativeWindow(window)->OnResize({ w, h });
     });
 
     glfwSetWindowCloseCallback(window_impl, [](GLFWwindow *window) {
@@ -200,8 +180,8 @@ void GlfwWindow::SetupCallbacks()
         //wnd->UpdateAndRender();
     });
 
-    glfwSetScrollCallback(window_impl, [](GLFWwindow* window, double xoffset, double yoffset) {
-        FromNativeWindow(window)->OnMouseScroll(glm::vec2(xoffset, yoffset));
+    glfwSetScrollCallback(window_impl, [](GLFWwindow* window, double offsetX, double offsetY) {
+        FromNativeWindow(window)->OnMouseScroll({ offsetX, offsetY });
     });
     
 }
@@ -217,4 +197,12 @@ void GlfwWindow::MakeContextCurrent()
         //in common case gl functions must be updated after context switching, but fortunately in case "one context per one thread" it don't occured
         TryUpdateGlBindings();
     }
+}
+
+void GlfwWindow::Close()
+{
+    //std::lock_guard lock(GlfwApplication::Get().mutex);
+
+    glfwDestroyWindow(window_impl);
+    window_impl = nullptr;
 }

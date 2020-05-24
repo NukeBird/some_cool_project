@@ -1,20 +1,9 @@
-#ifndef GLFW_WINDOW_HEADER
-#define GLFW_WINDOW_HEADER
-
-#include <iostream>
-#include <functional>
+#pragma once
 
 #include <globjects/globjects.h>
 #include <glm/glm.hpp>
 #include <GLFW/glfw3.h>
 
-
-struct GlfwException : public std::runtime_error
-{
-    GlfwException(const char* reason) : std::runtime_error(reason)
-    {
-    }
-};
 
 class MousePos
 {
@@ -32,6 +21,7 @@ private:
     glm::vec2 position, previous_position;
 };
 
+
 enum class GlfwCursorMode
 {
     Normal = GLFW_CURSOR_NORMAL,
@@ -39,52 +29,70 @@ enum class GlfwCursorMode
     Disabled = GLFW_CURSOR_DISABLED
 };
 
-class GlfwWindow
+enum class GlfwOpenglProfile
 {
+    Any = GLFW_OPENGL_ANY_PROFILE,
+    Core = GLFW_OPENGL_CORE_PROFILE,
+    Compat = GLFW_OPENGL_COMPAT_PROFILE
+};
+
+struct GlfwContextParameters
+{
+    GlfwOpenglProfile profile = GlfwOpenglProfile::Core;
+    int context_major_version = 4;
+    int context_minor_version = 3;
+    int msaa_samples = 0;
+};
+
+
+class GlfwWindow final
+{
+friend class GlfwApplication;
+
 public:
-    GlfwWindow() = default;
-    virtual ~GlfwWindow();
+    ///@thread_safety main thread
+    bool isKeyDown(int keyCode) const;
+    ///@thread_safety main thread
+    bool isMouseKeyDown(int button) const;
 
-    void Run();
+    ///@thread_safety main thread
+    GlfwWindow& setCursorMode(GlfwCursorMode cursorMode);
 
-    bool isKeyDown(int keyCode) const { return window_impl && (glfwGetKey(window_impl, keyCode) == GLFW_PRESS); }
-    bool isMouseKeyDown(int button) const { return window_impl && (glfwGetMouseButton(window_impl, button) == GLFW_PRESS); }
-
-    GlfwWindow& setCursorMode(GlfwCursorMode cursorMode)
-    {
-        if (window_impl)
-            glfwSetInputMode(window_impl, GLFW_CURSOR, static_cast<int>(cursorMode));
-
-        return *this;
-    }
-
-    //TODO: probably all this functions should be made thread-safe or made available only from callbacks(for example moved to some helper class)
+    ///@thread_safety main thread
     GlfwWindow& setLabel(const std::string& label);
     const std::string& getLabel() const { return window_label; }
 
+    ///@thread_safety main thread
     GlfwWindow& setSize(int width, int height);
     const glm::ivec2& getSize() const { return window_size; }
 
+    ///@thread_safety main thread
+    void requestAttention();
+
+    ///@thread_safety any thread
     GlfwWindow& setVSyncInterval(int interval);
+
+    ///@thread_safety any thread
     GlfwWindow& setCloseFlag(bool flag);
-    GlfwWindow& setNumMsaaSamples(int samples = 0);
+    bool getCloseFlag() const;
+
 
     //event callbacks
-    std::function<void(void)> InitializeCallback;
-    std::function<void(double)> UpdateCallback;
-    std::function<void(double)> RenderCallback;
-    std::function<void(void)> RefreshingCallback;
+    std::function<void(void)> InitializeCallback {};
+    std::function<void(double)> UpdateCallback {};
+    std::function<void(double)> RenderCallback {};
+    std::function<void(void)> RefreshingCallback {};
 
-    std::function<void(int)> KeyDownCallback;
-    std::function<void(int)> KeyUpCallback;
-    std::function<void(int)> KeyRepeatCallback;
-    std::function<void(const glm::ivec2&)> ResizeCallback;
-    std::function<void(void)> ClosingCallback;
+    std::function<void(int)> KeyDownCallback {};
+    std::function<void(int)> KeyUpCallback {};
+    std::function<void(int)> KeyRepeatCallback {};
+    std::function<void(const glm::ivec2&)> ResizeCallback {};
+    std::function<void(void)> ClosingCallback {};
 
-    std::function<void(const MousePos&)> MouseMoveCallback;
-    std::function<void(int)> MouseDownCallback;
-    std::function<void(int)> MouseUpCallback;
-    std::function<void(glm::vec2)> MouseScrollCallback;
+    std::function<void(const MousePos&)> MouseMoveCallback {};
+    std::function<void(int)> MouseDownCallback {};
+    std::function<void(int)> MouseUpCallback {};
+    std::function<void(glm::vec2)> MouseScrollCallback {};
 
 protected:
     void OnInitialize() const { if (InitializeCallback) InitializeCallback(); }
@@ -105,7 +113,7 @@ protected:
     }
     void OnKeyRepeat(int key) const { if (KeyRepeatCallback) KeyRepeatCallback(key); }
     
-    void OnResize(const glm::ivec2& newSize) const 
+    void OnResize(glm::ivec2 newSize) const 
     { 
         if (ResizeCallback) ResizeCallback(newSize); 
 
@@ -113,7 +121,7 @@ protected:
     }
     void OnClosing() const { if (ClosingCallback) ClosingCallback(); }
     
-    void OnMouseMove(glm::vec2& mousePosition) const 
+    void OnMouseMove(glm::vec2 mousePosition) const 
     {
         mousePosition.y = window_size.y - mousePosition.y; //WTF?
 
@@ -127,29 +135,32 @@ protected:
     void OnMouseScroll(const glm::vec2& scrollDirection) const { if (MouseScrollCallback) MouseScrollCallback(scrollDirection); }
 
 private:
+    ///@thread_safety main thread
+    GlfwWindow(GlfwContextParameters params);
+
     void SetupCallbacks();
     void MakeContextCurrent();
 
+    ///@thread_safety main thread
+    void Close();
+    ///@thread_safety any thread
     void UpdateAndRender();
 
     static GlfwWindow* FromNativeWindow(const GLFWwindow* window);
     static void TryUpdateGlBindings();
 
-private:
-    const int OpenGL_Context_Version_Major = 4;
-    const int OpenGL_Context_Version_Minor = 3;
 
 private:
-    GLFWwindow* window_impl = nullptr;
+    const GlfwContextParameters context_parameters;
+    GLFWwindow* window_impl { nullptr };
 
-    std::string window_label = "New window";
-    int num_msaa_samples = 0;
+    std::string window_label{ "New window"};
+
+    bool isInitialized{ false };
 
     //mutables is just for track some parameters in callbacks
-    mutable glm::ivec2 window_size = glm::ivec2(800, 600);
-    mutable glm::vec2 previous_mouse_pos;
+    mutable glm::ivec2 window_size { 800, 600 };
+    mutable glm::vec2 previous_mouse_pos {};
 
-    double previous_render_time = 0.0;
+    double previous_render_time {0.0};
 };
-
-#endif
