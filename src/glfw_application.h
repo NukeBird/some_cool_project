@@ -5,6 +5,9 @@
 #include <atomic>
 #include <vector>
 #include <functional>
+#include <future>
+#include <queue>
+
 
 
 #include "glfw_window.h"
@@ -33,16 +36,27 @@ public:
     //thread-safe
     std::shared_ptr<GlfwWindow> createWindow();
 
-    //should be called once
+    //thread-safe
+    template <typename T>
+    std::future<void> postAction(T&& func)
+    {
+        std::lock_guard lock{ tasks_mutex };
+        tasks.emplace(std::forward<T>(func));
+        
+        return tasks.back().get_future();
+    }
+
     void run();
-    void stop() { exit_triggered = true; }
+    void stop();
 
 private:
     GlfwApplication();
     ~GlfwApplication();
 
 private:
-    std::atomic<bool> exit_triggered = false;
-    std::mutex windows_registry_mutex;
+    std::atomic<bool> runned { false };
+    std::mutex windows_registry_mutex, tasks_mutex;
     std::vector<std::shared_ptr<GlfwWindow>> windows_registry;
+
+    std::queue<std::packaged_task<void()>> tasks;
 };

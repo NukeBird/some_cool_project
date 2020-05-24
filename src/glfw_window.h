@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mutex>
 #include <globjects/globjects.h>
 #include <glm/glm.hpp>
 #include <GLFW/glfw3.h>
@@ -55,29 +56,31 @@ public:
     ///@thread_safety main thread
     bool isMouseKeyDown(int button) const;
 
-    ///@thread_safety main thread
+    ///@thread_safety safe
     GlfwWindow& setCursorMode(GlfwCursorMode cursorMode);
 
-    ///@thread_safety main thread
+    ///@thread_safety safe
     GlfwWindow& setLabel(const std::string& label);
     const std::string& getLabel() const { return window_label; }
 
-    ///@thread_safety main thread
+    ///@thread_safety safe
     GlfwWindow& setSize(int width, int height);
     const glm::ivec2& getSize() const { return window_size; }
 
-    ///@thread_safety main thread
+    ///@thread_safety safe
     void requestAttention();
 
-    ///@thread_safety any thread
+    ///@thread_safety safe
     GlfwWindow& setVSyncInterval(int interval);
 
-    ///@thread_safety any thread
+    ///@thread_safety safe
     GlfwWindow& setCloseFlag(bool flag);
     bool getCloseFlag() const;
 
 
     //event callbacks
+    //Render context available only at InitializeCallback and RenderCallback
+
     std::function<void(void)> InitializeCallback {};
     std::function<void(double)> UpdateCallback {};
     std::function<void(double)> RenderCallback {};
@@ -156,11 +159,15 @@ private:
 
     std::string window_label{ "New window"};
 
-    bool isInitialized{ false };
+    bool is_initialized { false };
+    bool swap_interval_need_update { true };
 
     //mutables is just for track some parameters in callbacks
     mutable glm::ivec2 window_size { 800, 600 };
     mutable glm::vec2 previous_mouse_pos {};
+    mutable int swap_interval{ 0 };
+
+    mutable std::mutex mutex;
 
     double previous_render_time {0.0};
 };

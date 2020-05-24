@@ -23,8 +23,23 @@ std::shared_ptr<GlfwWindow> GlfwApplication::createWindow()
 
 void GlfwApplication::run()
 {
-    while (!exit_triggered)
+    if (runned)
+        throw GlfwException { "Already running!" };
+
+    runned = true;
+
+    while (runned)
     {
+        //Process all delayed actions at main thread
+        {
+            std::lock_guard lock{ tasks_mutex };
+            while (!tasks.empty())
+            {
+                tasks.front()();
+                tasks.pop();
+            }
+        }
+
         {
             std::lock_guard lock{ windows_registry_mutex };
 
@@ -44,11 +59,19 @@ void GlfwApplication::run()
 
         }
 
+        glfwMakeContextCurrent(nullptr);
+
         if (windows_registry.empty() && OnNoActiveWindows)
             OnNoActiveWindows();
-
+        
         glfwPollEvents();
     }
+}
+
+void GlfwApplication::stop()
+{
+    if (!runned.exchange(false))
+        throw GlfwException{ "Isn't running!" };
 }
 
 GlfwApplication::GlfwApplication()

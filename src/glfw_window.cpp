@@ -33,7 +33,7 @@ GlfwWindow::GlfwWindow(GlfwContextParameters contextParams) :
     /* Create a windowed mode window and its OpenGL context */
     window_impl = glfwCreateWindow(window_size.x, window_size.y, window_label.c_str(), nullptr, nullptr);
     if (!window_impl)
-        throw GlfwException("Windows creation failed");
+        throw GlfwException("Window creation failed");
 
     glfwSetWindowUserPointer(window_impl, this);
 
@@ -52,8 +52,10 @@ bool GlfwWindow::isMouseKeyDown(int button) const
 
 GlfwWindow& GlfwWindow::setCursorMode(GlfwCursorMode cursorMode)
 {
-    if (window_impl)
-        glfwSetInputMode(window_impl, GLFW_CURSOR, static_cast<int>(cursorMode));
+    GlfwApplication::get().postAction([=] {
+        if (window_impl)
+            glfwSetInputMode(window_impl, GLFW_CURSOR, static_cast<int>(cursorMode));
+        });
 
     return *this;
 }
@@ -64,9 +66,9 @@ void GlfwWindow::UpdateAndRender()
     MakeContextCurrent();
 
     {
-        if (!isInitialized)
+        if (!is_initialized)
         {
-            isInitialized = true;
+            is_initialized = true;
             OnInitialize();
             OnResize(getSize());
         }
@@ -82,30 +84,41 @@ void GlfwWindow::UpdateAndRender()
 
 GlfwWindow& GlfwWindow::setLabel(const std::string& label)
 {
-    window_label = label;
-    if (window_impl != nullptr)
-        glfwSetWindowTitle(window_impl, label.c_str());
+    {
+        std::lock_guard lock{ mutex };
+        window_label = label;
+    }
+
+    GlfwApplication::get().postAction([=] {
+        if (window_impl != nullptr)
+            glfwSetWindowTitle(window_impl, label.c_str());
+        });
 
     return *this;
 }
 
-//TODO: find a way to invoke it indirectly? Also need to remake anyway.
 GlfwWindow& GlfwWindow::setVSyncInterval(int interval)
 {
-    MakeContextCurrent();
-    glfwSwapInterval(interval);
+    std::lock_guard lock{ mutex };
 
+    swap_interval = interval;
+    swap_interval_need_update = true;
+    
     return *this;
 }
 
 GlfwWindow& GlfwWindow::setCloseFlag(bool flag)
 {
-    MakeContextCurrent();
-    glfwSetWindowShouldClose(window_impl, flag ? GLFW_TRUE : GLFW_FALSE);
+    std::lock_guard lock{ mutex };
 
-    //When flag is setted manually there is no callback, so we should call it manually
-    if (flag)
-        OnClosing();
+    if (window_impl)
+    {
+        glfwSetWindowShouldClose(window_impl, flag ? GLFW_TRUE : GLFW_FALSE);
+
+        //When flag is setted manually there is no callback, so we should call it manually
+        if (flag)
+            OnClosing();
+    }
 
     return *this;
 }
@@ -120,16 +133,24 @@ bool GlfwWindow::getCloseFlag() const
 
 void GlfwWindow::requestAttention()
 {
-    if (window_impl)
-        glfwRequestWindowAttention(window_impl);
+    GlfwApplication::get().postAction([=] {
+        if (window_impl)
+            glfwRequestWindowAttention(window_impl);
+        }
+    );
 }
 
 GlfwWindow& GlfwWindow::setSize(int width, int height)
 {
-    window_size = glm::ivec2(width, height);
+    {
+        std::lock_guard lock{ mutex };
+        window_size = glm::ivec2(width, height);
+    }
 
-    if (window_impl != nullptr)
-        glfwSetWindowSize(window_impl, window_size.x, window_size.y);
+    GlfwApplication::get().postAction([=] {
+        if (window_impl != nullptr)
+            glfwSetWindowSize(window_impl, window_size.x, window_size.y);
+        });
 
     return *this;
 }
@@ -196,12 +217,20 @@ void GlfwWindow::MakeContextCurrent()
 
         //in common case gl functions must be updated after context switching, but fortunately in case "one context per one thread" it don't occured
         TryUpdateGlBindings();
+
+        if (swap_interval_need_update)
+        {
+            glfwSwapInterval(swap_interval);
+            swap_interval_need_update = false;
+        }
     }
 }
 
 void GlfwWindow::Close()
 {
-    //std::lock_guard lock(GlfwApplication::Get().mutex);
+    std::lock_guard lock{ mutex };
+
+    assert(window_impl);
 
     glfwDestroyWindow(window_impl);
     window_impl = nullptr;

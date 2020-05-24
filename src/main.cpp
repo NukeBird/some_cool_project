@@ -244,22 +244,29 @@ private:
 
 		camera.setProjection(glm::perspectiveFov(glm::radians(70.0), static_cast<double>(newSize.x), static_cast<double>(newSize.y), 1.0, 1000.0));
 
-		//recreate framebuffer_hdr
-		framebuffer_hdr_color1 = globjects::Texture::createDefault(gl::GL_TEXTURE_2D_MULTISAMPLE);
-		//framebuffer_hdr_color1->storage2D(1, gl::GL_RGBA16F, newSize);
-		framebuffer_hdr_color1->storage2DMultisample(8, gl::GL_RGBA16F, newSize, true);
-		framebuffer_hdr_depth = globjects::Texture::createDefault(gl::GL_TEXTURE_2D_MULTISAMPLE);
-		//framebuffer_hdr_depth->storage2D(1, gl::GL_DEPTH_COMPONENT32F, newSize);
-		framebuffer_hdr_depth->storage2DMultisample(8, gl::GL_DEPTH_COMPONENT32F, newSize, true);
-
-		framebuffer_hdr->attachTexture(gl::GLenum::GL_COLOR_ATTACHMENT0, framebuffer_hdr_color1.get());
-		framebuffer_hdr->attachTexture(gl::GLenum::GL_DEPTH_ATTACHMENT, framebuffer_hdr_depth.get());
-		framebuffer_hdr->setDrawBuffers({ gl::GLenum::GL_COLOR_ATTACHMENT0, gl::GL_DEPTH_ATTACHMENT });
-		framebuffer_hdr->printStatus();
+		dirty_framebuffers = true;
     }
 
 	void OnRender(double deltaTime)
 	{
+		if (dirty_framebuffers)
+		{
+			//recreate framebuffer_hdr
+			framebuffer_hdr_color1 = globjects::Texture::createDefault(gl::GL_TEXTURE_2D_MULTISAMPLE);
+			//framebuffer_hdr_color1->storage2D(1, gl::GL_RGBA16F, newSize);
+			framebuffer_hdr_color1->storage2DMultisample(8, gl::GL_RGBA16F, window->getSize(), true);
+			framebuffer_hdr_depth = globjects::Texture::createDefault(gl::GL_TEXTURE_2D_MULTISAMPLE);
+			//framebuffer_hdr_depth->storage2D(1, gl::GL_DEPTH_COMPONENT32F, newSize);
+			framebuffer_hdr_depth->storage2DMultisample(8, gl::GL_DEPTH_COMPONENT32F, window->getSize(), true);
+
+			framebuffer_hdr->attachTexture(gl::GLenum::GL_COLOR_ATTACHMENT0, framebuffer_hdr_color1.get());
+			framebuffer_hdr->attachTexture(gl::GLenum::GL_DEPTH_ATTACHMENT, framebuffer_hdr_depth.get());
+			framebuffer_hdr->setDrawBuffers({ gl::GLenum::GL_COLOR_ATTACHMENT0, gl::GL_DEPTH_ATTACHMENT });
+			framebuffer_hdr->printStatus();
+
+			dirty_framebuffers = false;
+		}
+
 		rc.active_camera = &camera;
 		rc.transforms.reset(camera.getView(), camera.getProjection());
 
@@ -330,8 +337,7 @@ private:
 	std::shared_ptr<globjects::Texture> framebuffer_hdr_depth;
 	std::unique_ptr<globjects::Framebuffer> framebuffer_hdr;
 
-	
-
+	bool dirty_framebuffers = true;
 	
 
 	Camera camera;
