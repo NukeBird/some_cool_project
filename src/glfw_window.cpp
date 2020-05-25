@@ -20,7 +20,11 @@ GlfwWindow::GlfwWindow(GlfwContextParameters contextParams) :
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, context_parameters.context_major_version);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, context_parameters.context_minor_version);
     glfwWindowHint(GLFW_OPENGL_PROFILE, static_cast<int>(context_parameters.profile));
+
     glfwWindowHint(GLFW_SAMPLES, context_parameters.msaa_samples);
+    glfwWindowHint(GLFW_REFRESH_RATE, context_parameters.refresh_rate);
+    glfwWindowHint(GLFW_SRGB_CAPABLE, context_parameters.srgb_capable);
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, context_parameters.debug_context);
 
     /* Create a windowed mode window and its OpenGL context */
     window_impl = glfwCreateWindow(window_size.x, window_size.y, window_label.c_str(), nullptr, nullptr);

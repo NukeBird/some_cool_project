@@ -34,7 +34,7 @@ public:
     std::function<void()> OnNoActiveWindows{};
 
     //thread-safe
-    std::shared_ptr<GlfwWindow> createWindow();
+    std::shared_ptr<GlfwWindow> createWindow(GlfwContextParameters = {});
 
     //thread-safe
     template <typename T>

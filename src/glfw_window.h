@@ -14,12 +14,12 @@ public:
     MousePos(const MousePos&) = default;
     MousePos& operator=(const MousePos&) = default;
 
-    const glm::vec2& getPos() const noexcept { return position; }
-    glm::vec2 getDeltaPos() const noexcept { return position - previous_position; }
-    const glm::vec2& getPreviousPos() const noexcept { return previous_position; }
+    const glm::dvec2& getPos() const noexcept { return position; }
+    glm::dvec2 getDeltaPos() const noexcept { return position - previous_position; }
+    const glm::dvec2& getPreviousPos() const noexcept { return previous_position; }
 
 private:
-    glm::vec2 position, previous_position;
+    glm::dvec2 position, previous_position;
 };
 
 
@@ -42,7 +42,12 @@ struct GlfwContextParameters
     GlfwOpenglProfile profile = GlfwOpenglProfile::Core;
     int context_major_version = 4;
     int context_minor_version = 3;
-    int msaa_samples = 0;
+
+    int msaa_samples = GLFW_DONT_CARE;
+    int refresh_rate = GLFW_DONT_CARE;
+
+    bool srgb_capable = true;
+    bool debug_context = false;
 };
 
 
@@ -81,21 +86,21 @@ public:
     //event callbacks
     //Render context available only at InitializeCallback and RenderCallback
 
-    std::function<void(void)> InitializeCallback {};
+    std::function<void()> InitializeCallback {};
     std::function<void(double)> UpdateCallback {};
     std::function<void(double)> RenderCallback {};
-    std::function<void(void)> RefreshingCallback {};
+    std::function<void()> RefreshingCallback {};
 
     std::function<void(int)> KeyDownCallback {};
     std::function<void(int)> KeyUpCallback {};
     std::function<void(int)> KeyRepeatCallback {};
     std::function<void(const glm::ivec2&)> ResizeCallback {};
-    std::function<void(void)> ClosingCallback {};
+    std::function<void()> ClosingCallback {};
 
     std::function<void(const MousePos&)> MouseMoveCallback {};
     std::function<void(int)> MouseDownCallback {};
     std::function<void(int)> MouseUpCallback {};
-    std::function<void(glm::vec2)> MouseScrollCallback {};
+    std::function<void(glm::dvec2)> MouseScrollCallback {};
 
 protected:
     void OnInitialize() const { if (InitializeCallback) InitializeCallback(); }
@@ -103,28 +108,21 @@ protected:
     void OnRender(double deltaTime) const { if (RenderCallback) RenderCallback (deltaTime); }
     void OnWindowRefreshing() const { if (RefreshingCallback) RefreshingCallback(); }
 
-    void OnKeyDown(int key) const
-    {
-        if (KeyDownCallback)
-            KeyDownCallback(key);
-    }
+    void OnKeyDown(int key) const { if (KeyDownCallback) KeyDownCallback(key); }
 
-    void OnKeyUp(int key) const
-    {
-        if (KeyUpCallback)
-            KeyUpCallback(key);
-    }
+    void OnKeyUp(int key) const { if (KeyUpCallback) KeyUpCallback(key); }
     void OnKeyRepeat(int key) const { if (KeyRepeatCallback) KeyRepeatCallback(key); }
     
     void OnResize(glm::ivec2 newSize) const 
     { 
-        if (ResizeCallback) ResizeCallback(newSize); 
+        if (ResizeCallback) 
+            ResizeCallback(newSize); 
 
         window_size = newSize;
     }
     void OnClosing() const { if (ClosingCallback) ClosingCallback(); }
     
-    void OnMouseMove(glm::vec2 mousePosition) const 
+    void OnMouseMove(glm::dvec2 mousePosition) const 
     {
         mousePosition.y = window_size.y - mousePosition.y; //WTF?
 
@@ -135,7 +133,7 @@ protected:
     }
     void OnMouseDown(int button) const { if (MouseDownCallback) MouseDownCallback(button);}
     void OnMouseUp(int button) const { if (MouseUpCallback) MouseUpCallback(button); }
-    void OnMouseScroll(const glm::vec2& scrollDirection) const { if (MouseScrollCallback) MouseScrollCallback(scrollDirection); }
+    void OnMouseScroll(const glm::dvec2& scrollDirection) const { if (MouseScrollCallback) MouseScrollCallback(scrollDirection); }
 
 private:
     ///@thread_safety main thread
