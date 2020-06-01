@@ -18,6 +18,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "utils.h"
+
 uint32_t get_importer_flags()
 {
 	return aiProcess_GenSmoothNormals | //can't be specified with aiProcess_GenNormals
@@ -55,18 +57,19 @@ TextureRef parse_texture(aiTexture* assimp_texture)
 	auto buffer_size = assimp_texture->mWidth * (assimp_texture->mHeight > 0 ? assimp_texture->mHeight : 1);
 
 	int w, h, c;
-	auto image_ptr = SOIL_load_image_from_memory(buffer_ptr, buffer_size, &w, &h, &c, SOIL_LOAD_RGBA);
+	functional_unique_ptr<unsigned char> image_ptr {
+	    SOIL_load_image_from_memory(buffer_ptr, buffer_size, &w, &h, &c, SOIL_LOAD_RGBA),
+	    [](unsigned char* ptr) {SOIL_free_image_data(ptr); }
+	};
 
 	if (!image_ptr)
 	{
-		SOIL_free_image_data(image_ptr);
 		throw std::runtime_error(SOIL_last_result());
 	}
 	
 	texture->bindActive(0);
-	texture->image2D(0, gl::GL_RGBA, glm::ivec2(w, h), 0, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE, image_ptr);
+	texture->image2D(0, gl::GL_RGBA, glm::ivec2(w, h), 0, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE, image_ptr.get());
 
-	SOIL_free_image_data(image_ptr);
 	texture->generateMipmap();
 
 	spdlog::info("Texture {0}x{1} loaded", w, h);
