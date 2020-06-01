@@ -17,6 +17,8 @@ GlfwWindow::GlfwWindow(GlfwContextParameters contextParams) :
 {
     //std::lock_guard lock(GlfwApplication::Get().mutex);
 
+    //glfwDefaultWindowHints();
+
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, context_parameters.context_major_version);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, context_parameters.context_minor_version);
     glfwWindowHint(GLFW_OPENGL_PROFILE, static_cast<int>(context_parameters.profile));

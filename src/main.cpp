@@ -1,11 +1,12 @@
 #include <iostream>
 #include <unordered_set>
 
-
 #include "drawable.h"
 
 #include <globjects/globjects.h>
+//#include <glbinding/Binding.h>
 #include <globjects/base/File.h>
+
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <assimp/Importer.hpp>
@@ -114,6 +115,9 @@ class Scene
 public:
 	void addNode(NodeRef node, glm::mat4 modelMatrix = glm::mat4{1.0f})
 	{
+		if (!node)
+			return;
+
 		node->transform *= modelMatrix;
 		root.insert(std::move(node));
 	}
@@ -152,7 +156,11 @@ class App
 public:
 	void Run()
 	{
-		GlfwApplication::get().OnNoActiveWindows = [] { GlfwApplication::get().stop(); };
+		GlfwApplication::get().OnNoActiveWindows = []
+		{
+		    GlfwApplication::get().stop();
+		    spdlog::info("Exit");
+		};
 
 
 		window = GlfwApplication::get().createWindow();
@@ -160,8 +168,10 @@ public:
 		window->
 	        setLabel("Oh hi Mark"s).
 			setSize(1024, 768).
-		    setCursorMode(GlfwCursorMode::Hidden)
+		    setCursorMode(GlfwCursorMode::Disabled)
 	    ;
+
+		spdlog::info("Controls:\n WSAD\t-\tCamera movement\n +-\t-\tExposition control\n F5\t-\tReload shaders\n");
 
 		//setup callbacks
 		window->InitializeCallback = [this] { OnInitialize(); };
@@ -170,12 +180,29 @@ public:
 
 		window->MouseMoveCallback = [&](const MousePos& pos)
 		{
-			const auto relativePos = pos.getPos() / static_cast<glm::vec2>(window->getSize());
-
+			const auto relativePos = pos.getPos() / static_cast<glm::dvec2>(window->getSize());
+			
 			camera.setRotation(
 				glm::angleAxis(glm::mix(-glm::pi<float>(), glm::pi<float>(), relativePos.x), glm::vec3{ 0.0, -1.0, 0.0 }) *
 				glm::angleAxis(glm::mix(-glm::pi<float>() / 2, glm::pi<float>() / 2, relativePos.y), glm::vec3{ 1.0, 0.0, 0.0 })
 			);
+		};
+
+		window->KeyDownCallback = [&](int key)
+		{
+            switch (key)
+            {
+				case GLFW_KEY_F5:
+				{
+					dirty_shaders = true;
+					spdlog::info("Initiated shaders reloading");
+				} break;
+
+				default:
+					return;
+            }
+
+
 		};
 
 		window->UpdateCallback = [&](double dt)
@@ -190,21 +217,21 @@ public:
 			if (window->isKeyDown(GLFW_KEY_D))
 				camera.setPosition(camera.getPosition() - camera.getLeft() * moveSpeed);
 
-			const float expositionSpeed = dt;
+			const float expositionSpeed = 1 + 2*dt;
 			if (window->isKeyDown(GLFW_KEY_EQUAL))
-				exposition += expositionSpeed;
+				exposition *= expositionSpeed;
 			if (window->isKeyDown(GLFW_KEY_MINUS))
-				exposition -= expositionSpeed;
+				exposition /= expositionSpeed;
 
 			if (window->isKeyDown(GLFW_KEY_ESCAPE))
 				window->setCloseFlag(true);
 
-			exposition = glm::clamp(exposition, 0.01f, 10.0f);
+			exposition = glm::clamp(exposition, 0.001f, 10.0f);
 		};
 
 		window->MouseDownCallback = [this](int key)
 		{
-			
+
 		};
 
 		GlfwApplication::get().run();
@@ -217,12 +244,16 @@ private:
 			{
 				return glfwGetProcAddress(name);
 			});
+		//glbinding::Binding::addContextSwitchCallback([](glbinding::ContextHandle handle) {
+		//	globjects::setContext(handle);
+		//});
+
 
 		scene.addNode(ModelImporter::load("data/matball.glb"), glm::scale(glm::mat4{1.0f}, {10, 10, 10}));
 
-		program_skybox = ShaderImporter::load({ "data/shaders/sky.vs.glsl"s, "data/shaders/sky.fs.glsl"s });
-		program_mesh = ShaderImporter::load({ "data/shaders/mesh.vs.glsl", "data/shaders/mesh.fs.glsl" });
-		program_postprocess = ShaderImporter::load({"data/shaders/postprocess.vs.glsl", "data/shaders/postprocess.fs.glsl"});
+		program_skybox = ShaderImporter::load({ "data/shaders/sky.vs.glsl"s, "data/shaders/sky.fs.glsl"s }, &shaders_registry);
+		program_mesh = ShaderImporter::load({ "data/shaders/mesh.vs.glsl", "data/shaders/mesh.fs.glsl" }, &shaders_registry);
+		program_postprocess = ShaderImporter::load({"data/shaders/postprocess.vs.glsl", "data/shaders/postprocess.fs.glsl"}, &shaders_registry);
 
 		skybox_texture = TextureImporter::load("data/skybox.dds");
 		skybox_texture->generateMipmap();
@@ -239,6 +270,7 @@ private:
 		gl::glEnable(gl::GLenum::GL_MULTISAMPLE);
 		gl::glEnable(gl::GLenum::GL_DEPTH_TEST);
 		gl::glEnable(gl::GLenum::GL_CULL_FACE);
+		gl::glDisable(gl::GLenum::GL_FRAMEBUFFER_SRGB);
     }
 
 
@@ -269,16 +301,24 @@ private:
 			framebuffer_hdr->setDrawBuffers({ gl::GLenum::GL_COLOR_ATTACHMENT0, gl::GL_DEPTH_ATTACHMENT });
 			
 			if (framebuffer_hdr->checkStatus() != gl::GLenum::GL_FRAMEBUFFER_COMPLETE)
-			{
 				spdlog::error("Framebuffer is not complete: {0}", framebuffer_hdr->statusString());
-			}
+			else
+				spdlog::debug("Framebuffer resized to {0}x{1}", window->getSize().x, window->getSize().y);
 
 			
 			dirty_framebuffers = false;
 		}
 
+		if (dirty_shaders)
+		{
+			shaders_registry.reloadAll();
+			dirty_shaders = false;
+		}
+
 		rc.active_camera = &camera;
 		rc.transforms.reset(camera.getView(), camera.getProjection());
+
+		gl::glDisable(gl::GLenum::GL_FRAMEBUFFER_SRGB);
 
 		gl::glDepthMask(true);
 
@@ -337,10 +377,10 @@ private:
 	TextureRef skybox_texture;
 	MeshRef fullscreenQuad;
 
+	globjects::FileRegistry shaders_registry;
 	Program program_skybox, program_mesh, program_postprocess;
 
 	//BufferRef camera_buffer;
-
 
 	float exposition = 0.5f;
 	std::shared_ptr<globjects::Texture> framebuffer_hdr_color1;
@@ -348,7 +388,7 @@ private:
 	std::unique_ptr<globjects::Framebuffer> framebuffer_hdr;
 
 	bool dirty_framebuffers = true;
-	
+	bool dirty_shaders = false;
 
 	Camera camera;
 	RenderingContext rc;

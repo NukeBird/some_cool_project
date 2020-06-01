@@ -3,6 +3,7 @@
 
 #include <glbinding/gl/enum.h>
 #include <globjects/globjects.h>
+#include <globjects/base/FileRegistry.h>
 #include <spdlog/spdlog.h>
 
 using namespace std::literals;
@@ -12,7 +13,7 @@ struct Program
 	std::unique_ptr<globjects::Program> program;
 	struct Shader
 	{
-		std::unique_ptr<globjects::AbstractStringSource> shader_source;
+		std::unique_ptr<globjects::File> shader_source;
 		std::unique_ptr<globjects::Shader> shader;
 	};
 
@@ -30,7 +31,7 @@ struct Program
 class ShaderImporter
 {
 public:
-	static Program load(std::initializer_list<std::string> files)
+	static Program load(std::initializer_list<std::string> files, globjects::FileRegistry* registry = nullptr)
 	{
 		if (files.size() == 0)
 		{
@@ -53,6 +54,9 @@ public:
 			auto source = globjects::Shader::sourceFromFile(file);
 			auto shader = globjects::Shader::create(*shaderType, source.get());
 
+			if (registry)
+				registry->registerFile(source.get());
+
 			result.program->attach(shader.get());
 
 			if (result.shaders.empty()) //it's first file
@@ -61,7 +65,7 @@ public:
 			result.shaders.push_back({ std::move(source), std::move(shader) });
 		}
 
-		spdlog::info("Shader program '{0}' created", result->name());
+		spdlog::info("Shader program '{0}' imported successfully", result->name());
 		return result;
 	}
 
