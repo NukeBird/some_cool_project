@@ -1,13 +1,11 @@
 #version 420 core
+#extension GL_ARB_shading_language_include : enable
+
+#include "/fs_utils.glsl"
 
 precision mediump float;
 
 in vec2 v_texCoord;
-
-uniform mat4 u_matProj, u_matInverseProj;
-uniform mat4 u_matModelView, u_matInverseModelView;
-uniform mat3 u_matNormal;
-
 
 uniform float u_phase;
 uniform sampler3D u_texNoise;
@@ -27,12 +25,6 @@ vec4 toneMapping(vec4 color)
 	return vec4(mapped_color, color.a); 
 }
 
-vec3 getFragPos(in float z)
-{
-    vec4 pos = u_matInverseProj * vec4(v_texCoord*2.0-1.0, z*2.0-1.0, 1.0);
-    return pos.xyz/pos.w;
-}
-
 vec4 textureMultisample(sampler2DMS sampler, ivec2 coord)
 {
 	int texSamples = 8;
@@ -49,6 +41,17 @@ vec4 textureMultisample(sampler2DMS sampler, ivec2 coord)
 void main()
 {
 	vec4 color = textureMultisample(u_colorMap, ivec2(gl_FragCoord.xy));
+
+	// if (gl_FragCoord.y < 50)
+	// {
+	// 	color = vec4(v_texCoord.sss, 1.0);
+	// }
+	// else if (gl_FragCoord.y < 100)
+	// {
+	// 	FragColor = vec4(v_texCoord.sss, 1.0);
+	// 	return;
+	// }
+
 	FragColor = toneMapping(color);
 
 /*

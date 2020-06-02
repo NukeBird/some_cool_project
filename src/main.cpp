@@ -6,6 +6,7 @@
 #include <globjects/globjects.h>
 //#include <glbinding/Binding.h>
 #include <globjects/base/File.h>
+#include <globjects/NamedString.h>
 
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -89,11 +90,10 @@ struct RenderingContext
 		}
 		
 		int activeTextureSlotNumber = 0;
-	    for (auto pair : textures)
+	    for (auto [name, texture] : textures)
 	    {
-			gl::glActiveTexture(gl::GLenum::GL_TEXTURE0 + activeTextureSlotNumber);
-			active_program->setUniform(pair.first, activeTextureSlotNumber);
-			pair.second->bind();
+			active_program->setUniform(name, activeTextureSlotNumber);
+			texture->bindActive(activeTextureSlotNumber);
 
 			activeTextureSlotNumber++;
 	    }
@@ -251,9 +251,12 @@ private:
 
 		scene.addNode(ModelImporter::load("data/matball.glb"), glm::scale(glm::mat4{1.0f}, {10, 10, 10}));
 
-		program_skybox = ShaderImporter::load({ "data/shaders/sky.vs.glsl"s, "data/shaders/sky.fs.glsl"s }, &shaders_registry);
-		program_mesh = ShaderImporter::load({ "data/shaders/mesh.vs.glsl", "data/shaders/mesh.fs.glsl" }, &shaders_registry);
-		program_postprocess = ShaderImporter::load({"data/shaders/postprocess.vs.glsl", "data/shaders/postprocess.fs.glsl"}, &shaders_registry);
+		header_common = ShaderImporter::load_header("data/shaders/common.glsl", true);
+		header_fs_utils = ShaderImporter::load_header("data/shaders/fs_utils.glsl", true);
+
+		program_skybox = ShaderImporter::load({ "data/shaders/sky.vs.glsl"s, "data/shaders/sky.fs.glsl"s });
+		program_mesh = ShaderImporter::load({ "data/shaders/mesh.vs.glsl", "data/shaders/mesh.fs.glsl" });
+		program_postprocess = ShaderImporter::load({"data/shaders/postprocess.vs.glsl", "data/shaders/postprocess.fs.glsl"});
 
 		skybox_texture = TextureImporter::load("data/skybox.dds");
 		skybox_texture->generateMipmap();
@@ -311,7 +314,7 @@ private:
 
 		if (dirty_shaders)
 		{
-			shaders_registry.reloadAll();
+			ShaderImporter::get_default_registry().reloadAll();
 			dirty_shaders = false;
 		}
 
@@ -377,7 +380,6 @@ private:
 	TextureRef skybox_texture;
 	MeshRef fullscreenQuad;
 
-	globjects::FileRegistry shaders_registry;
 	Program program_skybox, program_mesh, program_postprocess;
 
 	//BufferRef camera_buffer;
@@ -386,6 +388,8 @@ private:
 	std::shared_ptr<globjects::Texture> framebuffer_hdr_color1;
 	std::shared_ptr<globjects::Texture> framebuffer_hdr_depth;
 	std::unique_ptr<globjects::Framebuffer> framebuffer_hdr;
+
+	std::unique_ptr<globjects::NamedString> header_common, header_fs_utils;
 
 	bool dirty_framebuffers = true;
 	bool dirty_shaders = false;

@@ -1,13 +1,11 @@
 #version 420 core
+#extension GL_ARB_shading_language_include : enable
 
-uniform mat4 u_matProj, u_matInverseProj;
-uniform mat4 u_matModelView, u_matInverseModelView;
-uniform mat3 u_matNormal;
+#include "/fs_utils.glsl"
 
 uniform sampler2D u_texAlbedo;
 uniform sampler2D u_texNormalMap;
 uniform sampler2D u_texAoRoughnessMetallic;
-
 
 
 in fsInput {
@@ -19,24 +17,6 @@ in fsInput {
 layout (location = 0) out vec4 FragColor;
 //layout (location = 1) out vec4 FragNormal;
 
-mat3 cotangent_frame(in vec3 normal, in vec3 pos, in vec2 uv)
-{
-    // get edge vectors of the pixel triangle
-    vec3 dp1 = dFdx( pos );
-    vec3 dp2 = dFdy( pos );
-    vec2 duv1 = dFdx( uv );
-    vec2 duv2 = dFdy( uv );
- 
-    // solve the linear system
-    vec3 dp2perp = cross( dp2, normal );
-    vec3 dp1perp = cross( normal, dp1 );
-    vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
-    vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
- 
-    // construct a scale-invariant frame 
-    float invmax = inversesqrt( max( dot(T,T), dot(B,B) ) );
-    return mat3( T * invmax, B * invmax, normal );
-}
 
 //SRGB -> RGB
 vec3 to_linear(in vec3 color)
