@@ -1,10 +1,12 @@
 #include <memory>
 #include <functional>
 #include <optional>
+#include <string_view>
+
+using namespace std::literals;
 
 template<typename T>
 using functional_unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;
-
 
 //idea from PVS-studio's presentation
 template <typename Func>

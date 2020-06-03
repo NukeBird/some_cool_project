@@ -75,7 +75,7 @@ struct RenderingContext
 	}
 
 	//TODO: reuse textures that is already bound
-	void applyTextures(std::initializer_list<std::pair<std::string, TextureRef>> textures)
+	void applyTextures(std::vector<std::pair<std::string, TextureRef>> textures)
 	{
 		assert(active_program);
 
@@ -101,12 +101,7 @@ struct RenderingContext
 
 	void applyMaterial(const MaterialRef& material)
 	{
-		applyTextures(
-		{
-			{"u_texAlbedo", material->albedo},
-			{"u_texNormalMap", material->normalMap},
-			{"u_texAoRoughnessMetallic", material->aoRoughnessMetallic}
-		});
+		applyTextures( { material->textures.begin(), material->textures.end() } );
 	}
 };
 

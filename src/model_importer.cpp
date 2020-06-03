@@ -52,7 +52,7 @@ TextureRef parse_texture(aiTexture* assimp_texture)
 	texture->setParameter(gl::GL_TEXTURE_WRAP_S, gl::GL_CLAMP_TO_EDGE);
 	texture->setParameter(gl::GL_TEXTURE_WRAP_T, gl::GL_CLAMP_TO_EDGE);
 	texture->setParameter(gl::GL_TEXTURE_WRAP_R, gl::GL_CLAMP_TO_EDGE);
-
+	
 	auto buffer_ptr = reinterpret_cast<unsigned char*>(assimp_texture->pcData);
 	auto buffer_size = assimp_texture->mWidth * (assimp_texture->mHeight > 0 ? assimp_texture->mHeight : 1);
 
@@ -123,87 +123,25 @@ MaterialRef parse_material(aiMaterial* assimp_material, const TextureList& textu
 {
 	MaterialRef material = std::make_shared<Material>();
 
-	//DIFFUSE
+	const static std::tuple<aiTextureType, unsigned, std::string_view> knownTextureFlavours[] = 
 	{
-		aiString path;
-		if (assimp_material->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS)
-		{
-			if (path.length > 0)
-			{
-				auto index = get_texture_index(path.data, scene);
+	    {aiTextureType_DIFFUSE, 0, "u_texAlbedo"sv},
+		{AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE, "u_texAlbedo"sv},
+		{aiTextureType_NORMALS, 0, "u_texNormalMap"sv},
+		{aiTextureType_HEIGHT, 0, "u_texNormalMap"sv},
+		{AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, "u_texAoRoughnessMetallic"sv}
+	};
 
-				if (index >= 0)
-				{
-					material->albedo = textures[index];
-				}
-			}
-		}
-
-		if (!material->albedo)
-		{
-			if (assimp_material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE,
-				&path) == AI_SUCCESS)
-			{
-				if (path.length > 0)
-				{
-					auto index = get_texture_index(path.data, scene);
-
-					if (index >= 0)
-					{
-						material->albedo = textures[index];
-					}
-				}
-			}
-		}
-	}
-
-	//NORMALMAP
+	for (auto [type, index, name] : knownTextureFlavours)
 	{
-		aiString path;
-		if (assimp_material->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS)
+		if (material->textures.find(name) != material->textures.end())
+			continue;
+
+		if (aiString path; assimp_material->GetTexture(type, index, &path) == aiReturn_SUCCESS && path.length > 0)
 		{
-			if (path.length > 0)
+			if (auto index = get_texture_index(path.data, scene); index >= 0)
 			{
-				auto index = get_texture_index(path.data, scene);
-
-				if (index >= 0)
-				{
-					material->normalMap = textures[index];
-				}
-			}
-		}
-
-		if (!material->normalMap)
-		{
-			if (assimp_material->GetTexture(aiTextureType_HEIGHT, 0, &path) == AI_SUCCESS)
-			{
-				if (path.length > 0)
-				{
-					auto index = get_texture_index(path.data, scene);
-
-					if (index >= 0)
-					{
-						material->normalMap = textures[index];
-					}
-				}
-			}
-		}
-	}
-
-	//AO_METALLIC_ROUGHNESS
-	{
-		aiString path;
-		if (assimp_material->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE,
-			&path) == AI_SUCCESS)
-		{
-			if (path.length > 0)
-			{
-				auto index = get_texture_index(path.data, scene);
-
-				if (index >= 0)
-				{
-					material->aoRoughnessMetallic = textures[index];
-				}
+				material->textures.emplace(name, textures[index]);
 			}
 		}
 	}

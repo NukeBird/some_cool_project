@@ -6,9 +6,7 @@ using TextureRef = std::shared_ptr<globjects::Texture>;
 
 struct Material
 {
-	TextureRef albedo;
-	TextureRef normalMap;
-	TextureRef aoRoughnessMetallic;
+    std::map<std::string, TextureRef, std::less<>> textures; 
 };
 
 using MaterialRef = std::shared_ptr<Material>;
